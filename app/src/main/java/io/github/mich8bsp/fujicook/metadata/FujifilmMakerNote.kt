@@ -16,28 +16,32 @@ object FujifilmMakerNote {
         require(maker.startsWith("FUJIFILM".encodeToByteArray()) && maker.size > 12) { "Invalid Fujifilm MakerNote" }
         val m = Tiff(maker, ByteOrder.LITTLE_ENDIAN, 0); val ifd = m.u32(8).toInt(); fun num(tag:Int)=m.number(m.entry(ifd,tag))?.toInt()
         val saturationRaw=num(0x1003); val film = decodeFilm(num(0x1401), saturationRaw)
+        val wbFine=m.bytes(m.entry(ifd,0x100a));val wbRed=wbFine?.takeIf{it.size>=8}?.let{ByteBuffer.wrap(it).order(ByteOrder.LITTLE_ENDIAN).int/20};val wbBlue=wbFine?.takeIf{it.size>=8}?.let{ByteBuffer.wrap(it).order(ByteOrder.LITTLE_ENDIAN).getInt(4)/20}
         val settings = RecipeSettings(
             filmSimulation=film,
             monochromeWarmCool=num(0x1049)?.signed8(), monochromeMagentaGreen=num(0x104b)?.signed8(),
             grainStrength=effect(num(0x1047)), grainSize=when(num(0x104c)){16->GrainSize.SMALL;32->GrainSize.LARGE;else->null},
             colorChrome=effect(num(0x1048)), colorChromeBlue=effect(num(0x104e)), smoothSkin=effect(num(0x1053)),
-            whiteBalance=decodeWhiteBalance(num(0x1002)), whiteBalanceTemperature=num(0x1005),
-            dynamicRange=when(num(0x1402)){0x100->100;0x200->200;0x201->400;else->null},
+            whiteBalance=decodeWhiteBalance(num(0x1002)), whiteBalanceTemperature=num(0x1005), whiteBalanceRed=wbRed, whiteBalanceBlue=wbBlue,
+            dynamicRange=when(num(0x1402)){1,0x100->100;2,0x200->200;3,0x201->400;else->null},
             highlightTone=decodeTone(num(0x1041)), shadowTone=decodeTone(num(0x1040)),
-            color=if (film.name.startsWith("ACROS") || film.name.startsWith("MONOCHROME") || film==FilmSimulation.SEPIA) null else decodeTone(saturationRaw)?.toInt(),
-            sharpness=decodeTone(num(0x1001))?.toInt(), highIsoNoiseReduction=decodeTone(num(0x100e))?.toInt(), clarity=num(0x100f)?.let { -it / 1000 },
+            color=if (film.isBlackAndWhite()) null else decodeColor(saturationRaw),
+            sharpness=decodeSharpness(num(0x1001)), highIsoNoiseReduction=decodeNoiseReduction(num(0x100e)), clarity=num(0x100f)?.let { it / 1000 },
         )
         return ExtractedSettings(settings, make, RecipeMetadata.readTags(jpeg))
     }
     private fun ByteArray.startsWith(prefix:ByteArray)=size>=prefix.size && prefix.indices.all{this[it]==prefix[it]}
     private fun Int.signed8()=(this and 0xff).let{if(it>127) it-256 else it}
     private fun effect(v:Int?)=when(v){0->EffectStrength.OFF;32->EffectStrength.WEAK;64->EffectStrength.STRONG;else->null}
-    private fun decodeTone(v:Int?):Double? = v?.let { signed32(it) / -16.0 }
+    private fun decodeTone(v:Int?):Double? = v?.let { if(it==0) 0.0 else signed32(it) / -16.0 }
+    internal fun decodeColor(v:Int?)=when(v){0x4e0->-4;0x4c0->-3;0x400->-2;0x180->-1;0x0->0;0x080->1;0x100->2;0x0c0->3;0x0e0->4;else->null}
+    internal fun decodeSharpness(v:Int?)=when(v){0x00->-4;0x01->-3;0x02->-2;0x82->-1;0x03->0;0x84->1;0x04->2;0x05->3;0x06->4;else->null}
+    internal fun decodeNoiseReduction(v:Int?)=when(v){0x2e0->-4;0x2c0->-3;0x200->-2;0x280->-1;0x000->0;0x180->1;0x100->2;0x1c0->3;0x1e0->4;else->null}
     private fun signed32(v:Int)=v
     private fun decodeWhiteBalance(v:Int?)=when(v){0->WhiteBalance.AUTO;256->WhiteBalance.DAYLIGHT;512->WhiteBalance.SHADE;768->WhiteBalance.FLUORESCENT_1;769->WhiteBalance.FLUORESCENT_2;770->WhiteBalance.FLUORESCENT_3;1024->WhiteBalance.INCANDESCENT;3840->WhiteBalance.CUSTOM_1;3841->WhiteBalance.CUSTOM_2;3842->WhiteBalance.CUSTOM_3;4080->WhiteBalance.TEMPERATURE;else->null}
-    private fun decodeFilm(v:Int?,sat:Int?):FilmSimulation {
+    internal fun decodeFilm(v:Int?,sat:Int?):FilmSimulation {
         // Fujifilm encodes monochrome modes in Saturation rather than FilmMode.
-        val mono=when(sat){0x100->FilmSimulation.MONOCHROME;0x110->FilmSimulation.MONOCHROME_YE;0x120->FilmSimulation.MONOCHROME_R;0x130->FilmSimulation.MONOCHROME_G;0x200->FilmSimulation.SEPIA;0x300->FilmSimulation.ACROS;0x310->FilmSimulation.ACROS_YE;0x320->FilmSimulation.ACROS_R;0x330->FilmSimulation.ACROS_G;else->null}; if(mono!=null)return mono
+        val mono=when(sat){0x300->FilmSimulation.MONOCHROME;0x302->FilmSimulation.MONOCHROME_YE;0x301->FilmSimulation.MONOCHROME_R;0x303->FilmSimulation.MONOCHROME_G;0x310->FilmSimulation.SEPIA;0x500->FilmSimulation.ACROS;0x502->FilmSimulation.ACROS_YE;0x501->FilmSimulation.ACROS_R;0x503->FilmSimulation.ACROS_G;else->null}; if(mono!=null)return mono
         return when(v){0x000->FilmSimulation.PROVIA;0x200,0x400->FilmSimulation.VELVIA;0x120->FilmSimulation.ASTIA;0x500->FilmSimulation.PRO_NEG_STD;0x501->FilmSimulation.PRO_NEG_HI;0x600->FilmSimulation.CLASSIC_CHROME;0x700->FilmSimulation.ETERNA;0x800->FilmSimulation.CLASSIC_NEGATIVE;0x900->FilmSimulation.ETERNA_BLEACH_BYPASS;0xa00->FilmSimulation.NOSTALGIC_NEGATIVE;0xb00->FilmSimulation.REALA_ACE;else->error("Unsupported film simulation code: $v")}
     }
 
