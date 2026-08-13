@@ -1,4 +1,5 @@
 package io.github.mich8bsp.fujicook.ui
+
 import android.app.Application
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -8,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.*
@@ -18,14 +20,49 @@ import io.github.mich8bsp.fujicook.model.*
 import java.io.ByteArrayInputStream
 import kotlinx.coroutines.*
 
-data class TagState(val jpeg:ParsedJpeg?=null,val extracted:ExtractedSettings?=null,val match:MatchResult?=null,val selected:MatchCandidate?=null,val busy:Boolean=false,val message:String?=null)
-class TaggerViewModel(app:Application):AndroidViewModel(app){
- private val repo=(app as FujiCookApplication).recipes
- var state by mutableStateOf(TagState());private set
- fun load(uri:Uri)=viewModelScope.launch{state=TagState(busy=true);runCatching{withContext(Dispatchers.IO){val data=getApplication<Application>().contentResolver.openInputStream(uri)!!.use{it.readBytes()};val jpeg=JpegSegments.read(ByteArrayInputStream(data));val ex=FujifilmMakerNote.extract(jpeg);Triple(jpeg,ex,RecipeMatcher.match(ex.settings,repo.matchableRevisions()))}}.onSuccess{v->state=TagState(v.first,v.second,v.third,v.third.candidates.firstOrNull())}.onFailure{state=TagState(message=it.message)}}
- fun select(c:MatchCandidate){state=state.copy(selected=c)}
- fun save(uri:Uri)=viewModelScope.launch{val jpeg=state.jpeg?:return@launch;val c=state.selected?:return@launch;state=state.copy(busy=true);runCatching{withContext(Dispatchers.IO){getApplication<Application>().contentResolver.openOutputStream(uri,"w")!!.use{JpegSegments.write(RecipeMetadata.tag(jpeg,c.recipe.name),it)}}}.onSuccess{state=state.copy(busy=false,message="Tagged copy saved")}.onFailure{state=state.copy(busy=false,message=it.message)}}
+data class TagState(
+    val jpeg: ParsedJpeg? = null,
+    val extracted: ExtractedSettings? = null,
+    val match: MatchResult? = null,
+    val selected: MatchCandidate? = null,
+    val busy: Boolean = false,
+    val message: String? = null,
+)
+
+class TaggerViewModel(app: Application) : AndroidViewModel(app) {
+    private val repo = (app as FujiCookApplication).recipes
+    var state by mutableStateOf(TagState()); private set
+
+    fun load(uri: Uri) = viewModelScope.launch {
+        state = TagState(busy = true)
+        runCatching {
+            withContext(Dispatchers.IO) {
+                val data = getApplication<Application>().contentResolver.openInputStream(uri)!!.use { it.readBytes() }
+                val jpeg = JpegSegments.read(ByteArrayInputStream(data))
+                val ex = FujifilmMakerNote.extract(jpeg)
+                Triple(jpeg, ex, RecipeMatcher.match(ex.settings, repo.matchableRevisions()))
+            }
+        }.onSuccess { v -> state = TagState(v.first, v.second, v.third, v.third.candidates.firstOrNull()) }
+            .onFailure { state = TagState(message = it.message) }
+    }
+
+    fun select(c: MatchCandidate) {
+        state = state.copy(selected = c)
+    }
+
+    fun save(uri: Uri) = viewModelScope.launch {
+        val jpeg = state.jpeg ?: return@launch
+        val c = state.selected ?: return@launch
+        state = state.copy(busy = true)
+        runCatching {
+            withContext(Dispatchers.IO) {
+                getApplication<Application>().contentResolver.openOutputStream(uri, "w")!!.use { JpegSegments.write(RecipeMetadata.tag(jpeg, c.recipe.name), it) }
+            }
+        }.onSuccess { state = state.copy(busy = false, message = "Tagged copy saved") }
+            .onFailure { state = state.copy(busy = false, message = it.message) }
+    }
 }
+
 @Composable
 fun JpegTaggerScreen(vm: TaggerViewModel = viewModel()) {
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(vm::load) }
@@ -49,7 +86,7 @@ fun JpegTaggerScreen(vm: TaggerViewModel = viewModel()) {
                     val isExpanded = candidate.revision.id in expanded
                     Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                         Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(candidate.recipe.name, style = MaterialTheme.typography.titleMedium)
                                     Text((candidate.confidence * 100).toInt().toString() + "% · " + candidate.differences.size + " difference(s)")
@@ -69,6 +106,7 @@ fun JpegTaggerScreen(vm: TaggerViewModel = viewModel()) {
         vm.state.message?.let { Text(it, Modifier.padding(top = 8.dp)) }
     }
 }
+
 @Composable
 private fun PhotoParameters(photo: RecipeSettings) {
     Card(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
@@ -87,7 +125,6 @@ private fun PhotoParameters(photo: RecipeSettings) {
         }
     }
 }
-
 
 @Composable
 private fun ParameterComparison(photo: RecipeSettings, recipe: RecipeSettings) {

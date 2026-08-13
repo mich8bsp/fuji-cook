@@ -7,5 +7,8 @@ import androidx.compose.material3.MaterialTheme
 import io.github.mich8bsp.fujicook.ui.FujiCookApp
 
 class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); setContent { MaterialTheme { FujiCookApp() } } }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent { MaterialTheme { FujiCookApp() } }
+    }
 }

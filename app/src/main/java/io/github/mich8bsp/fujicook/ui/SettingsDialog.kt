@@ -97,16 +97,10 @@ private fun <T> RequiredSelector(label: String, value: T, values: List<T>, forma
     Selector(label, format(value), values.map { format(it) to { onValue(it) } })
 }
 
-
 @Composable
 private fun <T> StepperSelector(label: String, value: T, values: List<T>, format: (T) -> String = { formatValue(it) }, onValue: (T) -> Unit) {
     val index = values.indexOf(value)
     StepperRow(label, format(value), index > 0, index in 0 until values.lastIndex, { onValue(values[index - 1]) }, { onValue(values[index + 1]) })
-}
-
-@Composable
-private fun IntStepper(label: String, value: Int, minimum: Int, maximum: Int, step: Int, format: (Int) -> String = { it.toString() }, onValue: (Int) -> Unit) {
-    StepperRow(label, format(value), value > minimum, value < maximum, { onValue((value - step).coerceAtLeast(minimum)) }, { onValue((value + step).coerceAtMost(maximum)) })
 }
 
 @Composable
@@ -152,4 +146,5 @@ private fun formatValue(value: Any?): String = when (value) {
     is Enum<*> -> value.name.replace('_', ' ').lowercase().replaceFirstChar(Char::uppercase)
     else -> value.toString()
 }
+
 private fun formatNumber(value: Double): String = if (value % 1.0 == 0.0) value.toInt().toString() else value.toString()

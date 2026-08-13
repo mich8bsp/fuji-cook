@@ -1,9 +1,21 @@
 package io.github.mich8bsp.fujicook.model
 
-enum class FilmSimulation { PROVIA, VELVIA, ASTIA, PRO_NEG_HI, PRO_NEG_STD, MONOCHROME, MONOCHROME_YE, MONOCHROME_R, MONOCHROME_G, SEPIA, CLASSIC_CHROME, ACROS, ACROS_YE, ACROS_R, ACROS_G, ETERNA, CLASSIC_NEGATIVE, ETERNA_BLEACH_BYPASS, NOSTALGIC_NEGATIVE, REALA_ACE }
+enum class FilmSimulation {
+    PROVIA, VELVIA, ASTIA, PRO_NEG_HI, PRO_NEG_STD,
+    MONOCHROME, MONOCHROME_YE, MONOCHROME_R, MONOCHROME_G, SEPIA,
+    CLASSIC_CHROME, ACROS, ACROS_YE, ACROS_R, ACROS_G,
+    ETERNA, CLASSIC_NEGATIVE, ETERNA_BLEACH_BYPASS, NOSTALGIC_NEGATIVE, REALA_ACE,
+}
+
 enum class EffectStrength { OFF, WEAK, STRONG }
 enum class GrainSize { SMALL, LARGE }
-enum class WhiteBalance { AUTO, AUTO_WHITE_PRIORITY, AUTO_AMBIENCE_PRIORITY, DAYLIGHT, SHADE, INCANDESCENT, FLUORESCENT_1, FLUORESCENT_2, FLUORESCENT_3, UNDERWATER, TEMPERATURE, CUSTOM_1, CUSTOM_2, CUSTOM_3 }
+enum class WhiteBalance {
+    AUTO, AUTO_WHITE_PRIORITY, AUTO_AMBIENCE_PRIORITY,
+    DAYLIGHT, SHADE, INCANDESCENT,
+    FLUORESCENT_1, FLUORESCENT_2, FLUORESCENT_3,
+    UNDERWATER, TEMPERATURE,
+    CUSTOM_1, CUSTOM_2, CUSTOM_3,
+}
 enum class ColorSpace { SRGB, ADOBE_RGB }
 
 data class RecipeSettings(
@@ -29,17 +41,24 @@ data class RecipeSettings(
     val colorSpace: ColorSpace? = null,
 ) {
     fun validate() {
-        fun range(name: String, value: Int?, valid: IntRange) { require(value == null || value in valid) { "$name must be in ${valid.first}..${valid.last}" } }
+        fun range(name: String, value: Int?, valid: IntRange) {
+            require(value == null || value in valid) { "$name must be in ${valid.first}..${valid.last}" }
+        }
         range("monochromeWarmCool", monochromeWarmCool, -18..18)
         range("monochromeMagentaGreen", monochromeMagentaGreen, -18..18)
         range("whiteBalanceTemperature", whiteBalanceTemperature, 2500..10000)
-        range("whiteBalanceRed", whiteBalanceRed, -9..9); range("whiteBalanceBlue", whiteBalanceBlue, -9..9)
+        range("whiteBalanceRed", whiteBalanceRed, -9..9)
+        range("whiteBalanceBlue", whiteBalanceBlue, -9..9)
         require(dynamicRange == null || dynamicRange in setOf(100, 200, 400)) { "dynamicRange must be 100, 200, or 400" }
         require(highlightTone == null || highlightTone in -2.0..4.0) { "highlightTone must be -2..4" }
         require(shadowTone == null || shadowTone in -2.0..4.0) { "shadowTone must be -2..4" }
-        range("color", color, -4..4); range("sharpness", sharpness, -4..4)
-        range("highIsoNoiseReduction", highIsoNoiseReduction, -4..4); range("clarity", clarity, -5..5)
-        require(whiteBalance == WhiteBalance.TEMPERATURE || whiteBalanceTemperature == null) { "Temperature requires TEMPERATURE white balance" }
+        range("color", color, -4..4)
+        range("sharpness", sharpness, -4..4)
+        range("highIsoNoiseReduction", highIsoNoiseReduction, -4..4)
+        range("clarity", clarity, -5..5)
+        require((whiteBalance == WhiteBalance.TEMPERATURE) == (whiteBalanceTemperature != null)) {
+            "whiteBalanceTemperature must be set if and only if white balance is TEMPERATURE"
+        }
     }
 }
 
@@ -72,5 +91,5 @@ data class Recipe(val id: String, val name: String, val archived: Boolean, val c
 
 data class ExtractedSettings(val settings: RecipeSettings, val make: String?, val existingRecipeTags: List<String> = emptyList())
 enum class MatchStatus { MATCH, LOW_CONFIDENCE, AMBIGUOUS, NO_MATCH }
-data class MatchCandidate(val recipe: Recipe, val revision: RecipeRevision, val score: Double, val confidence: Double, val differences: List<String>)
+data class MatchCandidate(val recipe: Recipe, val revision: RecipeRevision, val confidence: Double, val differences: List<String>)
 data class MatchResult(val status: MatchStatus, val candidates: List<MatchCandidate>)

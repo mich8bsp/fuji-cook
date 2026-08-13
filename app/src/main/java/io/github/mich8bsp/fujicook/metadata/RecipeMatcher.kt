@@ -10,12 +10,12 @@ object RecipeMatcher {
             val differences = softDifferences(photo, settings)
             val compared = softValues(photo, settings).count { (photoValue, recipeValue) -> photoValue != null && recipeValue != null }
             val confidence = if (compared == 0) 1.0 else (compared - differences.size).toDouble() / compared
-            MatchCandidate(recipe, revision, confidence, confidence, differences)
-        }.sortedByDescending { it.score }
+            MatchCandidate(recipe, revision, confidence, differences)
+        }.sortedByDescending { it.confidence }
 
         if (scored.isEmpty()) return MatchResult(MatchStatus.NO_MATCH, emptyList())
         val best = scored.first()
-        val tied = scored.drop(1).firstOrNull()?.score == best.score
+        val tied = scored.drop(1).firstOrNull()?.confidence == best.confidence
         val status = when {
             tied -> MatchStatus.AMBIGUOUS
             best.confidence < .75 -> MatchStatus.LOW_CONFIDENCE
@@ -34,6 +34,7 @@ object RecipeMatcher {
         photo.colorChrome to recipe.colorChrome,
         photo.colorChromeBlue to recipe.colorChromeBlue,
         photo.whiteBalance to recipe.whiteBalance,
+        photo.whiteBalanceTemperature to recipe.whiteBalanceTemperature,
         photo.whiteBalanceRed to recipe.whiteBalanceRed,
         photo.whiteBalanceBlue to recipe.whiteBalanceBlue,
         photo.highlightTone to recipe.highlightTone,
