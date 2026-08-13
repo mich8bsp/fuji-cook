@@ -6,6 +6,7 @@ import io.github.mich8bsp.fujicook.metadata.*
 import io.github.mich8bsp.fujicook.model.*
 import java.io.*
 import java.nio.*
+import java.nio.charset.StandardCharsets
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -100,6 +101,21 @@ class CoreTest {
         assertEquals(1, result.candidates.size)
         assertEquals(11.0 / 13, result.candidates.single().confidence, 0.0)
         assertEquals(2, result.candidates.single().differences.size)
+        assertEquals("DR400, Grain strong large", result.candidates.single().modifiedSummary)
+    }
+
+    @Test
+    fun tagEmbedsModifiedSummaryWithoutLeakingIntoReadTags() {
+        val scan = byteArrayOf(0xff.toByte(), 0xda.toByte(), 0, 8, 1, 1, 0, 0, 63, 0, 1, 2, 3, 0xff.toByte(), 0xd9.toByte())
+        val source = byteArrayOf(0xff.toByte(), 0xd8.toByte(), 0xff.toByte(), 0xe0.toByte(), 0, 4, 1, 2) + scan
+        val parsed = JpegSegments.read(ByteArrayInputStream(source))
+        val tagged = RecipeMetadata.tag(parsed, "Natura 1600", "DR100, Clarity 0, Grain off")
+        val out = ByteArrayOutputStream()
+        JpegSegments.write(tagged, out)
+        val reread = JpegSegments.read(ByteArrayInputStream(out.toByteArray()))
+        assertEquals(listOf("recipe:Natura 1600"), RecipeMetadata.readTags(reread))
+        val iptcPayload = reread.segments.first { it.marker == 0xed }.payload
+        assertTrue(String(iptcPayload, StandardCharsets.UTF_8).contains("recipe-mods:DR100, Clarity 0, Grain off"))
     }
 
     @Test

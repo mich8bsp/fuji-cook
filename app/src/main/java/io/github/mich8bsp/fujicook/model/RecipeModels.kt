@@ -93,5 +93,5 @@ data class Recipe(val id: String, val name: String, val archived: Boolean, val c
 
 data class ExtractedSettings(val settings: RecipeSettings, val make: String?, val existingRecipeTags: List<String> = emptyList())
 enum class MatchStatus { MATCH, LOW_CONFIDENCE, AMBIGUOUS, NO_MATCH }
-data class MatchCandidate(val recipe: Recipe, val revision: RecipeRevision, val confidence: Double, val differences: List<String>)
+data class MatchCandidate(val recipe: Recipe, val revision: RecipeRevision, val confidence: Double, val differences: List<String>, val modifiedSummary: String? = null)
 data class MatchResult(val status: MatchStatus, val candidates: List<MatchCandidate>)

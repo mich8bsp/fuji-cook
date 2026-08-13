@@ -56,7 +56,7 @@ class TaggerViewModel(app: Application) : AndroidViewModel(app) {
         state = state.copy(busy = true)
         runCatching {
             withContext(Dispatchers.IO) {
-                getApplication<Application>().contentResolver.openOutputStream(uri, "w")!!.use { JpegSegments.write(RecipeMetadata.tag(jpeg, c.recipe.name), it) }
+                getApplication<Application>().contentResolver.openOutputStream(uri, "w")!!.use { JpegSegments.write(RecipeMetadata.tag(jpeg, c.recipe.name, c.modifiedSummary), it) }
             }
         }.onSuccess { state = state.copy(busy = false, message = "Tagged copy saved") }
             .onFailure { state = state.copy(busy = false, message = it.message) }
@@ -90,6 +90,7 @@ fun JpegTaggerScreen(vm: TaggerViewModel = viewModel()) {
                                 Column(Modifier.weight(1f)) {
                                     Text(candidate.recipe.name, style = MaterialTheme.typography.titleMedium)
                                     Text((candidate.confidence * 100).toInt().toString() + "% · " + candidate.differences.size + " difference(s)")
+                                    candidate.modifiedSummary?.let { Text("Will tag as modified: $it", style = MaterialTheme.typography.bodySmall) }
                                 }
                                 RadioButton(vm.state.selected?.revision?.id == candidate.revision.id, { vm.select(candidate) })
                             }

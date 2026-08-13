@@ -10,7 +10,7 @@ object RecipeMatcher {
             val differences = softDifferences(photo, settings)
             val compared = (strictValues(photo, settings) + softValues(photo, settings)).count { (photoValue, recipeValue) -> photoValue != null && recipeValue != null }
             val confidence = if (compared == 0) 1.0 else (compared - differences.size).toDouble() / compared
-            MatchCandidate(recipe, revision, confidence, differences)
+            MatchCandidate(recipe, revision, confidence, differences, modifiedSummary(photo, settings))
         }.sortedByDescending { it.confidence }
 
         if (scored.isEmpty()) return MatchResult(MatchStatus.NO_MATCH, emptyList())
@@ -61,5 +61,22 @@ object RecipeMatcher {
         return values.mapNotNull { (name, photoValue, recipeValue) ->
             if (photoValue != null && recipeValue != null && photoValue != recipeValue) "$name: photo $photoValue, recipe $recipeValue" else null
         }
+    }
+
+    private fun modifiedSummary(photo: RecipeSettings, recipe: RecipeSettings): String? {
+        val parts = mutableListOf<String>()
+        if (photo.dynamicRange != null && recipe.dynamicRange != null && photo.dynamicRange != recipe.dynamicRange) {
+            parts += formatDynamicRange(photo.dynamicRange)
+        }
+        if (photo.clarity != null && recipe.clarity != null && photo.clarity != recipe.clarity) {
+            parts += "Clarity ${photo.clarity}"
+        }
+        val grainChanged = (photo.grainStrength != null && recipe.grainStrength != null && photo.grainStrength != recipe.grainStrength) ||
+            (photo.grainSize != null && recipe.grainSize != null && photo.grainSize != recipe.grainSize)
+        if (grainChanged && photo.grainStrength != null) {
+            parts += if (photo.grainStrength == EffectStrength.OFF) "Grain off"
+            else "Grain " + photo.grainStrength.name.lowercase() + (photo.grainSize?.let { " " + it.name.lowercase() } ?: "")
+        }
+        return parts.takeIf { it.isNotEmpty() }?.joinToString(", ")
     }
 }

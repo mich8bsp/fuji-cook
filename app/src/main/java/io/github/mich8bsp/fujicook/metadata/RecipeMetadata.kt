@@ -15,16 +15,16 @@ object RecipeMetadata {
         return (xmp + iptc).distinct()
     }
 
-    fun tag(jpeg: ParsedJpeg, recipeName: String): ParsedJpeg {
-        val tag = "recipe:$recipeName"
-        val segments = jpeg.segments.filterNot { it.marker == 0xe1 && it.payload.startsWith(xmpHeader) }.toMutableList()
-        val subjects = (readTags(jpeg).filterNot { it.startsWith("recipe:") } + tag).distinct()
+    fun tag(jpeg: ParsedJpeg, recipeName: String, modifiedSummary: String? = null): ParsedJpeg {
+        val tags = listOfNotNull("recipe:$recipeName", modifiedSummary?.let { "recipe-mods:$it" })
+        val segments = jpeg.segments.filterNot { (it.marker == 0xe1 && it.payload.startsWith(xmpHeader)) || it.marker == 0xed }.toMutableList()
+        val subjects = (readTags(jpeg).filterNot { it.startsWith("recipe:") } + tags).distinct()
         val escaped = subjects.joinToString("") { "<rdf:li>${xml(it)}</rdf:li>" }
         val xmp = """<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:subject><rdf:Bag>$escaped</rdf:Bag></dc:subject></rdf:Description></rdf:RDF></x:xmpmeta><?xpacket end="w"?>""".encodeToByteArray()
         var insert = (segments.indexOfLast { it.marker in 0xe0..0xef } + 1).coerceAtLeast(0)
         segments.add(insert, JpegSegment(0xe1, xmpHeader + xmp))
         insert++
-        segments.add(insert, JpegSegment(0xed, iptcSegment(tag)))
+        segments.add(insert, JpegSegment(0xed, iptcSegment(tags)))
         return jpeg.copy(segments = segments)
     }
 
@@ -43,13 +43,15 @@ object RecipeMetadata {
         return out.filter { it.startsWith("recipe:") }
     }
 
-    private fun iptcSegment(keyword: String): ByteArray {
-        val value = keyword.toByteArray(StandardCharsets.UTF_8)
-        require(value.size <= 32767)
+    private fun iptcSegment(keywords: List<String>): ByteArray {
         val dataset = ByteArrayOutputStream().apply {
-            write(0x1c); write(2); write(25)
-            write(value.size shr 8); write(value.size)
-            write(value)
+            keywords.forEach { keyword ->
+                val value = keyword.toByteArray(StandardCharsets.UTF_8)
+                require(value.size <= 32767)
+                write(0x1c); write(2); write(25)
+                write(value.size shr 8); write(value.size)
+                write(value)
+            }
         }.toByteArray()
         val out = ByteArrayOutputStream()
         out.write("Photoshop 3.0\u0000".toByteArray(StandardCharsets.US_ASCII))
