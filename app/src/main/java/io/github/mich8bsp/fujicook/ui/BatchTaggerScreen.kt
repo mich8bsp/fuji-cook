@@ -1,10 +1,12 @@
 package io.github.mich8bsp.fujicook.ui
 
 import android.app.Application
+import android.content.ContentResolver
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.provider.OpenableColumns
+import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -38,6 +40,7 @@ data class BatchItem(
 )
 
 data class BatchState(
+    val folder: Uri? = null,
     val items: List<BatchItem> = emptyList(),
     val busy: Boolean = false,
     val message: String? = null,
@@ -47,14 +50,14 @@ class BatchTaggerViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = (app as FujiCookApplication).recipes
     var state by mutableStateOf(BatchState()); private set
 
-    fun load(uris: List<Uri>) = viewModelScope.launch {
-        if (uris.isEmpty()) return@launch
-        state = BatchState(busy = true)
-        val resolver = getApplication<Application>().contentResolver
+    fun loadFolder(tree: Uri) = viewModelScope.launch {
+        val app = getApplication<Application>()
+        app.contentResolver.takePersistableUriPermission(tree, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        state = BatchState(folder = tree, busy = true)
+        val resolver = app.contentResolver
         val loaded = withContext(Dispatchers.IO) {
-            uris.mapNotNull { uri ->
+            listJpegs(resolver, tree).mapNotNull { (uri, name) ->
                 runCatching {
-                    val name = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { if (it.moveToFirst()) it.getString(0) else null } ?: "photo.jpg"
                     val data = resolver.openInputStream(uri)!!.use { it.readBytes() }
                     val jpeg = JpegSegments.read(ByteArrayInputStream(data))
                     val ex = FujifilmMakerNote.extract(jpeg)
@@ -64,8 +67,7 @@ class BatchTaggerViewModel(app: Application) : AndroidViewModel(app) {
                 }.getOrNull()
             }
         }
-        val skipped = uris.size - loaded.size
-        state = BatchState(items = loaded, message = if (skipped > 0) "$skipped file(s) could not be read" else null)
+        state = state.copy(items = loaded, busy = false, message = if (loaded.isEmpty()) "No JPEGs found in that folder" else null)
     }
 
     fun select(uri: Uri, candidate: MatchCandidate) {
@@ -77,23 +79,45 @@ class BatchTaggerViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun saveAll() = viewModelScope.launch {
+        val tree = state.folder ?: return@launch
         state = state.copy(busy = true, message = null)
         val app = getApplication<Application>()
+        val folderDoc = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
         var saved = 0
-        var failed = 0
+        val errors = mutableListOf<String>()
         withContext(Dispatchers.IO) {
             state.items.forEach { item ->
                 val c = item.selected ?: return@forEach
                 runCatching {
                     val fileName = suggestedFileName(item.name, c.recipe.name)
-                    val out = createSiblingDocument(app, item.uri, fileName)
+                    val out = requireNotNull(DocumentsContract.createDocument(app.contentResolver, folderDoc, "image/jpeg", fileName)) { "Could not create $fileName" }
                     app.contentResolver.openOutputStream(out, "w")!!.use { JpegSegments.write(RecipeMetadata.tag(item.jpeg, c.recipe.name, c.modifiedSummary), it) }
                     saved++
-                }.onFailure { failed++ }
+                }.onFailure { errors += item.name + ": " + (it.message ?: it.javaClass.simpleName) }
             }
         }
-        state = state.copy(busy = false, message = "$saved tagged photo(s) saved" + if (failed > 0) ", $failed failed" else "")
+        state = state.copy(busy = false, message = "$saved tagged photo(s) saved" + if (errors.isNotEmpty()) "; " + errors.take(3).joinToString("; ") else "")
     }
+}
+
+private fun listJpegs(resolver: ContentResolver, tree: Uri): List<Pair<Uri, String>> {
+    val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+    val out = mutableListOf<Pair<Uri, String>>()
+    resolver.query(
+        childrenUri,
+        arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME, DocumentsContract.Document.COLUMN_MIME_TYPE),
+        null, null, null,
+    )?.use { cursor ->
+        while (cursor.moveToNext()) {
+            val docId = cursor.getString(0)
+            val name = cursor.getString(1) ?: continue
+            val mime = cursor.getString(2) ?: ""
+            if (mime == "image/jpeg" || name.lowercase().let { it.endsWith(".jpg") || it.endsWith(".jpeg") }) {
+                out += DocumentsContract.buildDocumentUriUsingTree(tree, docId) to name
+            }
+        }
+    }
+    return out
 }
 
 private fun decodeThumbnail(data: ByteArray): Bitmap? {
@@ -108,11 +132,11 @@ private fun decodeThumbnail(data: ByteArray): Bitmap? {
 
 @Composable
 fun BatchTaggerScreen(vm: BatchTaggerViewModel = viewModel()) {
-    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> vm.load(uris) }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> uri?.let(vm::loadFolder) }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("Batch Tagger", style = MaterialTheme.typography.headlineMedium)
-        Button(onClick = { pick.launch(arrayOf("image/jpeg")) }, modifier = Modifier.padding(vertical = 12.dp)) { Text("Choose X-T5 JPEGs") }
+        Button(onClick = { pick.launch(null) }, modifier = Modifier.padding(vertical = 12.dp)) { Text(if (vm.state.folder == null) "Choose folder" else "Change folder") }
         if (vm.state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         LazyColumn(Modifier.weight(1f)) {
             items(vm.state.items, key = { it.uri }) { item -> BatchItemCard(item, onSelect = { vm.select(item.uri, it) }, onRemove = { vm.remove(item.uri) }) }
