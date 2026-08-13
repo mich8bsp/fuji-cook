@@ -8,7 +8,7 @@ object RecipeMatcher {
             val settings = revision.settings
             if (!identityMatches(photo, settings)) return@mapNotNull null
             val differences = softDifferences(photo, settings)
-            val compared = softValues(photo, settings).count { (photoValue, recipeValue) -> photoValue != null && recipeValue != null }
+            val compared = (strictValues(photo, settings) + softValues(photo, settings)).count { (photoValue, recipeValue) -> photoValue != null && recipeValue != null }
             val confidence = if (compared == 0) 1.0 else (compared - differences.size).toDouble() / compared
             MatchCandidate(recipe, revision, confidence, differences)
         }.sortedByDescending { it.confidence }
@@ -29,7 +29,7 @@ object RecipeMatcher {
             photoValue == null || recipeValue == null || photoValue == recipeValue
         }
 
-    private fun strictValues(photo: RecipeSettings, recipe: RecipeSettings) = listOf(
+    private fun strictValues(photo: RecipeSettings, recipe: RecipeSettings): List<Pair<Any?, Any?>> = listOf(
         photo.filmSimulation to recipe.filmSimulation,
         photo.colorChrome to recipe.colorChrome,
         photo.colorChromeBlue to recipe.colorChromeBlue,

@@ -98,7 +98,7 @@ class CoreTest {
         val recipe = photo.copy(grainStrength = EffectStrength.WEAK, dynamicRange = 200)
         val result = RecipeMatcher.match(photo, listOf(candidate("soft", recipe)))
         assertEquals(1, result.candidates.size)
-        assertEquals(0.5, result.candidates.single().confidence, 0.0)
+        assertEquals(11.0 / 13, result.candidates.single().confidence, 0.0)
         assertEquals(2, result.candidates.single().differences.size)
     }
 
