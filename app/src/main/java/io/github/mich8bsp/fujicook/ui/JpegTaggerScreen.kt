@@ -158,7 +158,7 @@ private fun comparisonRows(photo: RecipeSettings, recipe: RecipeSettings): List<
     if (photo.whiteBalance == WhiteBalance.TEMPERATURE || recipe.whiteBalance == WhiteBalance.TEMPERATURE) add(ComparisonRow("WB temperature", photo.whiteBalanceTemperature, recipe.whiteBalanceTemperature))
     add(ComparisonRow("WB red", photo.whiteBalanceRed, recipe.whiteBalanceRed))
     add(ComparisonRow("WB blue", photo.whiteBalanceBlue, recipe.whiteBalanceBlue))
-    add(ComparisonRow("Dynamic range", photo.dynamicRange?.let { "DR$it" }, recipe.dynamicRange?.let { "DR$it" }))
+    add(ComparisonRow("Dynamic range", photo.dynamicRange?.let(::formatDynamicRange), recipe.dynamicRange?.let(::formatDynamicRange)))
     add(ComparisonRow("Highlight", photo.highlightTone, recipe.highlightTone))
     add(ComparisonRow("Shadow", photo.shadowTone, recipe.shadowTone))
     if (!photo.filmSimulation.isBlackAndWhite() && !recipe.filmSimulation.isBlackAndWhite()) add(ComparisonRow("Color", photo.color, recipe.color))

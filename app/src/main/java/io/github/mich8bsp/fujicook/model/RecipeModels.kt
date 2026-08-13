@@ -49,7 +49,7 @@ data class RecipeSettings(
         range("whiteBalanceTemperature", whiteBalanceTemperature, 2500..10000)
         range("whiteBalanceRed", whiteBalanceRed, -9..9)
         range("whiteBalanceBlue", whiteBalanceBlue, -9..9)
-        require(dynamicRange == null || dynamicRange in setOf(100, 200, 400)) { "dynamicRange must be 100, 200, or 400" }
+        require(dynamicRange == null || dynamicRange in setOf(0, 100, 200, 400)) { "dynamicRange must be 0 (Auto), 100, 200, or 400" }
         require(highlightTone == null || highlightTone in -2.0..4.0) { "highlightTone must be -2..4" }
         require(shadowTone == null || shadowTone in -2.0..4.0) { "shadowTone must be -2..4" }
         range("color", color, -4..4)
@@ -63,6 +63,8 @@ data class RecipeSettings(
 }
 
 fun FilmSimulation.isBlackAndWhite() = name.startsWith("MONOCHROME") || name.startsWith("ACROS") || this == FilmSimulation.SEPIA
+
+fun formatDynamicRange(v: Int) = if (v == 0) "DR Auto" else "DR$v"
 
 fun RecipeSettings.asCompleteRecipe() = copy(
     monochromeWarmCool = null,

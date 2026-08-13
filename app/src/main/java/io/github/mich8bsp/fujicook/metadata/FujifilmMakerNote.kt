@@ -44,7 +44,7 @@ object FujifilmMakerNote {
             whiteBalanceTemperature = num(0x1005),
             whiteBalanceRed = wbRed,
             whiteBalanceBlue = wbBlue,
-            dynamicRange = when (num(0x1402)) { 1, 0x100 -> 100; 2, 0x200 -> 200; 3, 0x201 -> 400; else -> null },
+            dynamicRange = when (num(0x1402)) { 0 -> 0; 1, 0x100 -> 100; 2, 0x200 -> 200; 3, 0x201 -> 400; else -> null },
             highlightTone = decodeTone(num(0x1041)),
             shadowTone = decodeTone(num(0x1040)),
             color = if (film.isBlackAndWhite()) null else decodeColor(saturationRaw),

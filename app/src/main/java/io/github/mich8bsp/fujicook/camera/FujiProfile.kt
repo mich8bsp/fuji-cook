@@ -50,7 +50,7 @@ object FujiProfile {
         set(12, s.whiteBalanceRed)
         set(13, s.whiteBalanceBlue)
         set(14, s.whiteBalanceTemperature)
-        set(5, s.dynamicRange?.let { mapOf(100 to 1, 200 to 2, 400 to 3).getValue(it) })
+        set(5, s.dynamicRange?.let { mapOf(0 to 0, 100 to 1, 200 to 2, 400 to 3).getValue(it) })
         set(15, s.highlightTone?.times(10)?.toInt())
         set(16, s.shadowTone?.times(10)?.toInt())
         set(17, s.color?.times(10))

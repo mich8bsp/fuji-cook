@@ -83,7 +83,7 @@ internal fun SettingsEditor(settings: RecipeSettings, temperature: String, onSet
         }
         StepperSelector("WB red", settings.whiteBalanceRed ?: 0, (-9..9).toList()) { onSettingsChange(settings.copy(whiteBalanceRed = it)) }
         StepperSelector("WB blue", settings.whiteBalanceBlue ?: 0, (-9..9).toList()) { onSettingsChange(settings.copy(whiteBalanceBlue = it)) }
-        RequiredSelector("Dynamic range", settings.dynamicRange ?: 100, listOf(100, 200, 400), format = { "DR$it" }) { onSettingsChange(settings.copy(dynamicRange = it)) }
+        RequiredSelector("Dynamic range", settings.dynamicRange ?: 100, listOf(0, 100, 200, 400), format = ::formatDynamicRange) { onSettingsChange(settings.copy(dynamicRange = it)) }
         StepperSelector("Highlight", settings.highlightTone ?: 0.0, toneValues, format = ::formatNumber) { onSettingsChange(settings.copy(highlightTone = it)) }
         StepperSelector("Shadow", settings.shadowTone ?: 0.0, toneValues, format = ::formatNumber) { onSettingsChange(settings.copy(shadowTone = it)) }
         if (!settings.filmSimulation.isBlackAndWhite()) StepperSelector("Color", settings.color ?: 0, (-4..4).toList()) { onSettingsChange(settings.copy(color = it)) }
