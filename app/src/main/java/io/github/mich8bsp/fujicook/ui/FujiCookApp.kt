@@ -2,6 +2,8 @@ package io.github.mich8bsp.fujicook.ui
 
 import android.app.Application
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -81,16 +83,18 @@ fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
         if (visible.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Your library is empty. Create or import a recipe.") }
         } else {
-            visible.forEach { recipe ->
-                Card(onClick = { editing = recipe }, modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
-                    Row(Modifier.padding(14.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column {
-                            Text(recipe.name, style = MaterialTheme.typography.titleMedium)
-                            Text(recipe.current.settings.filmSimulation.name.replace('_', ' '))
-                        }
-                        Row {
-                            TextButton(onClick = { vm.archive(recipe.id, !recipe.archived) }) { Text(if (recipe.archived) "Restore" else "Archive") }
-                            if (recipe.archived) TextButton(onClick = { deleting = recipe }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            LazyColumn(Modifier.fillMaxSize()) {
+                items(visible, key = { it.id }) { recipe ->
+                    Card(onClick = { editing = recipe }, modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+                        Row(Modifier.padding(14.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column {
+                                Text(recipe.name, style = MaterialTheme.typography.titleMedium)
+                                Text(recipe.current.settings.filmSimulation.name.replace('_', ' '))
+                            }
+                            Row {
+                                TextButton(onClick = { vm.archive(recipe.id, !recipe.archived) }) { Text(if (recipe.archived) "Restore" else "Archive") }
+                                if (recipe.archived) TextButton(onClick = { deleting = recipe }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                            }
                         }
                     }
                 }

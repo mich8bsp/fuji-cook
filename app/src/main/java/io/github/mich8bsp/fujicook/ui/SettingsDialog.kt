@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -118,7 +119,8 @@ private fun StepperRow(label: String, displayedValue: String, canDecrease: Boole
 @Composable
 private fun Selector(label: String, selected: String, choices: List<Pair<String, () -> Unit>>) {
     var expanded by remember { mutableStateOf(false) }
-    Surface(Modifier.fillMaxWidth().clickable { expanded = true }, color = MaterialTheme.colorScheme.background) {
+    val focusManager = LocalFocusManager.current
+    Surface(Modifier.fillMaxWidth().clickable { focusManager.clearFocus(); expanded = true }, color = MaterialTheme.colorScheme.background) {
         Row(Modifier.padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
             Text(selected, color = if (selected == "Inherit") MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary)
