@@ -2,6 +2,7 @@ package io.github.mich8bsp.fujicook.ui
 
 import android.app.Application
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -25,6 +26,7 @@ data class TagState(
     val extracted: ExtractedSettings? = null,
     val match: MatchResult? = null,
     val selected: MatchCandidate? = null,
+    val fileName: String? = null,
     val busy: Boolean = false,
     val message: String? = null,
 )
@@ -37,14 +39,16 @@ class TaggerViewModel(app: Application) : AndroidViewModel(app) {
         state = TagState(busy = true)
         runCatching {
             withContext(Dispatchers.IO) {
-                val data = getApplication<Application>().contentResolver.openInputStream(uri)!!.use { it.readBytes() }
+                val resolver = getApplication<Application>().contentResolver
+                val name = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { if (it.moveToFirst()) it.getString(0) else null }
+                val data = resolver.openInputStream(uri)!!.use { it.readBytes() }
                 val jpeg = JpegSegments.read(ByteArrayInputStream(data))
                 val ex = FujifilmMakerNote.extract(jpeg)
                 val active = RecipeMatcher.match(ex.settings, repo.matchableRevisions())
                 val match = if (active.status == MatchStatus.NO_MATCH) RecipeMatcher.match(ex.settings, repo.matchableRevisions(includeArchived = true)) else active
-                Triple(jpeg, ex, match)
+                Triple(jpeg, ex, match) to name
             }
-        }.onSuccess { v -> state = TagState(v.first, v.second, v.third, v.third.candidates.firstOrNull()) }
+        }.onSuccess { (v, name) -> state = TagState(v.first, v.second, v.third, v.third.candidates.firstOrNull(), fileName = name) }
             .onFailure { state = TagState(message = it.message) }
     }
 
@@ -105,7 +109,9 @@ fun JpegTaggerScreen(vm: TaggerViewModel = viewModel()) {
                 }
             }
         }
-        if (vm.state.selected != null) Button(onClick = { save.launch("photo_tagged.jpg") }, modifier = Modifier.fillMaxWidth()) { Text("Save tagged copy") }
+        vm.state.selected?.let { c ->
+            Button(onClick = { save.launch(suggestedFileName(vm.state.fileName, c.recipe.name)) }, modifier = Modifier.fillMaxWidth()) { Text("Save tagged copy") }
+        }
         vm.state.message?.let { Text(it, Modifier.padding(top = 8.dp)) }
     }
 }
@@ -168,6 +174,12 @@ private fun comparisonRows(photo: RecipeSettings, recipe: RecipeSettings): List<
     add(ComparisonRow("Sharpness", photo.sharpness, recipe.sharpness))
     add(ComparisonRow("High ISO NR", photo.highIsoNoiseReduction, recipe.highIsoNoiseReduction))
     add(ComparisonRow("Clarity", photo.clarity, recipe.clarity))
+}
+
+internal fun suggestedFileName(originalName: String?, recipeName: String): String {
+    val base = (originalName ?: "photo").substringBeforeLast('.')
+    val suffix = recipeName.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_')
+    return "${base}_$suffix.jpg"
 }
 
 private fun formatComparisonValue(value: Any?): String = when (value) {

@@ -4,6 +4,7 @@ import io.github.mich8bsp.fujicook.camera.*
 import io.github.mich8bsp.fujicook.data.*
 import io.github.mich8bsp.fujicook.metadata.*
 import io.github.mich8bsp.fujicook.model.*
+import io.github.mich8bsp.fujicook.ui.suggestedFileName
 import java.io.*
 import java.nio.*
 import java.nio.charset.StandardCharsets
@@ -116,6 +117,13 @@ class CoreTest {
         assertEquals(listOf("recipe:Natura 1600"), RecipeMetadata.readTags(reread))
         val iptcPayload = reread.segments.first { it.marker == 0xed }.payload
         assertTrue(String(iptcPayload, StandardCharsets.UTF_8).contains("recipe-mods:DR100, Clarity 0, Grain off"))
+    }
+
+    @Test
+    fun suggestedFileNameUsesOriginalNameAndSnakeCasedRecipe() {
+        assertEquals("DSCF1234_natura_1600.jpg", suggestedFileName("DSCF1234.JPG", "Natura 1600"))
+        assertEquals("photo_my_recipe.jpg", suggestedFileName(null, "My Recipe!"))
+        assertEquals("archive.tar_provia.jpg", suggestedFileName("archive.tar.gz", "Provia"))
     }
 
     @Test
