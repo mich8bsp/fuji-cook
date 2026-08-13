@@ -57,7 +57,7 @@ class RecipeRepository(private val db: RecipeDatabase) {
         return Recipe(row.recipe.id, row.recipe.name, row.recipe.archived, row.recipe.createdAt, row.recipe.updatedAt, revision(latest))
     }
 
-    suspend fun matchableRevisions(): List<Pair<Recipe, RecipeRevision>> = dao.getAll().filter { !it.recipe.archived }.mapNotNull { row ->
+    suspend fun matchableRevisions(includeArchived: Boolean = false): List<Pair<Recipe, RecipeRevision>> = dao.getAll().filter { includeArchived || !it.recipe.archived }.mapNotNull { row ->
         val current = domain(row) ?: return@mapNotNull null
         current to current.current
     }

@@ -40,7 +40,9 @@ class TaggerViewModel(app: Application) : AndroidViewModel(app) {
                 val data = getApplication<Application>().contentResolver.openInputStream(uri)!!.use { it.readBytes() }
                 val jpeg = JpegSegments.read(ByteArrayInputStream(data))
                 val ex = FujifilmMakerNote.extract(jpeg)
-                Triple(jpeg, ex, RecipeMatcher.match(ex.settings, repo.matchableRevisions()))
+                val active = RecipeMatcher.match(ex.settings, repo.matchableRevisions())
+                val match = if (active.status == MatchStatus.NO_MATCH) RecipeMatcher.match(ex.settings, repo.matchableRevisions(includeArchived = true)) else active
+                Triple(jpeg, ex, match)
             }
         }.onSuccess { v -> state = TagState(v.first, v.second, v.third, v.third.candidates.firstOrNull()) }
             .onFailure { state = TagState(message = it.message) }
@@ -88,7 +90,7 @@ fun JpegTaggerScreen(vm: TaggerViewModel = viewModel()) {
                         Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(candidate.recipe.name, style = MaterialTheme.typography.titleMedium)
+                                    Text(candidate.recipe.name + if (candidate.recipe.archived) " (archived)" else "", style = MaterialTheme.typography.titleMedium)
                                     Text((candidate.confidence * 100).toInt().toString() + "% · " + candidate.differences.size + " difference(s)")
                                     candidate.modifiedSummary?.let { Text("Will tag as modified: $it", style = MaterialTheme.typography.bodySmall) }
                                 }
