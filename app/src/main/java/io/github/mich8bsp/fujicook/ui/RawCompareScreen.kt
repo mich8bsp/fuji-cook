@@ -82,7 +82,7 @@ class RawViewModel(app: Application) : AndroidViewModel(app) {
                 val recipeName = pair.first.name.trim().lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), "_").trim('_')
                 val base = state.rafName.substringBeforeLast('.', state.rafName)
                 val fileName = "${base}_${recipeName}.JPG"
-                val uri = createSiblingDocument(source, fileName)
+                val uri = createSiblingDocument(getApplication<Application>(), source, fileName)
                 val parsed = JpegSegments.read(ByteArrayInputStream(pair.second))
                 getApplication<Application>().contentResolver.openOutputStream(uri, "w")!!.use { JpegSegments.write(RecipeMetadata.tag(parsed, pair.first.name), it) }
                 fileName
@@ -90,19 +90,19 @@ class RawViewModel(app: Application) : AndroidViewModel(app) {
         }.onSuccess { state = state.copy(message = it + " saved next to the RAF") }
             .onFailure { state = state.copy(message = it.message) }
     }
+}
 
-    private fun createSiblingDocument(source: Uri, fileName: String): Uri {
-        val resolver = getApplication<Application>().contentResolver
-        require(DocumentsContract.isDocumentUri(getApplication(), source)) { "The selected RAF provider does not support saving beside the source file" }
-        val documentId = DocumentsContract.getDocumentId(source)
-        val parentId = when {
-            '/' in documentId -> documentId.substringBeforeLast('/')
-            ':' in documentId -> documentId.substringBeforeLast(':') + ":"
-            else -> error("The selected RAF provider does not expose its parent folder. Choose the RAF from phone storage or an SD card.")
-        }
-        val parent = DocumentsContract.buildDocumentUri(source.authority!!, parentId)
-        return requireNotNull(DocumentsContract.createDocument(resolver, parent, "image/jpeg", fileName)) { "Could not create output beside the RAF" }
+internal fun createSiblingDocument(app: Application, source: Uri, fileName: String): Uri {
+    val resolver = app.contentResolver
+    require(DocumentsContract.isDocumentUri(app, source)) { "The selected file's provider does not support saving beside the source file" }
+    val documentId = DocumentsContract.getDocumentId(source)
+    val parentId = when {
+        '/' in documentId -> documentId.substringBeforeLast('/')
+        ':' in documentId -> documentId.substringBeforeLast(':') + ":"
+        else -> error("The selected file's provider does not expose its parent folder. Choose it from phone storage or an SD card.")
     }
+    val parent = DocumentsContract.buildDocumentUri(source.authority!!, parentId)
+    return requireNotNull(DocumentsContract.createDocument(resolver, parent, "image/jpeg", fileName)) { "Could not create output beside the source file" }
 }
 
 @Composable

@@ -21,7 +21,7 @@ import io.github.mich8bsp.fujicook.model.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-enum class Destination(val label: String) { RECIPES("Recipes"), TAGGER("JPEG Tagger"), RAW("RAW Compare") }
+enum class Destination(val label: String) { RECIPES("Recipes"), TAGGER("JPEG Tagger"), BATCH_TAGGER("Batch Tagger"), RAW("RAW Compare") }
 
 @Composable
 fun FujiCookApp() {
@@ -33,7 +33,7 @@ fun FujiCookApp() {
                     NavigationBarItem(
                         selected = d == destination,
                         onClick = { destination = d },
-                        icon = { Icon(when (d) { Destination.RECIPES -> Icons.Default.List; Destination.TAGGER -> Icons.Default.Search; Destination.RAW -> Icons.Default.Settings }, null) },
+                        icon = { Icon(when (d) { Destination.RECIPES -> Icons.Default.List; Destination.TAGGER -> Icons.Default.Search; Destination.BATCH_TAGGER -> Icons.Default.CheckCircle; Destination.RAW -> Icons.Default.Settings }, null) },
                         label = { Text(d.label) },
                     )
                 }
@@ -44,6 +44,7 @@ fun FujiCookApp() {
             when (destination) {
                 Destination.RECIPES -> RecipeScreen()
                 Destination.TAGGER -> TaggerScreen()
+                Destination.BATCH_TAGGER -> BatchTaggerScreen()
                 Destination.RAW -> RawScreen()
             }
         }
