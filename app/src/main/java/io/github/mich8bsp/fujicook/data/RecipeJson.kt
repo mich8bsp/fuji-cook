@@ -1,7 +1,6 @@
 package io.github.mich8bsp.fujicook.data
 
 import io.github.mich8bsp.fujicook.model.*
-import org.json.JSONArray
 import org.json.JSONObject
 
 object RecipeJson {
@@ -14,6 +13,8 @@ object RecipeJson {
 
     fun settings(s: RecipeSettings) = JSONObject().apply {
         put("filmSimulation", s.filmSimulation.name)
+        putOpt("monochromeWarmCool", s.monochromeWarmCool)
+        putOpt("monochromeMagentaGreen", s.monochromeMagentaGreen)
         putOpt("grainStrength", s.grainStrength?.name)
         putOpt("grainSize", s.grainSize?.name)
         putOpt("colorChrome", s.colorChrome?.name)
@@ -40,8 +41,8 @@ object RecipeJson {
 
         return RecipeSettings(
             filmSimulation = FilmSimulation.valueOf(o.getString("filmSimulation")),
-            monochromeWarmCool = null,
-            monochromeMagentaGreen = null,
+            monochromeWarmCool = int("monochromeWarmCool"),
+            monochromeMagentaGreen = int("monochromeMagentaGreen"),
             grainStrength = en("grainStrength", EffectStrength.entries.toTypedArray()),
             grainSize = en("grainSize", GrainSize.entries.toTypedArray()),
             colorChrome = en("colorChrome", EffectStrength.entries.toTypedArray()),
@@ -60,26 +61,5 @@ object RecipeJson {
             clarity = int("clarity"),
             colorSpace = null,
         ).asCompleteRecipe().also { it.validate() }
-    }
-
-    fun envelope(items: List<ExportRecipe>) = JSONObject()
-        .put("schemaVersion", 1)
-        .put("cameraModel", "Fujifilm X-T5")
-        .put("recipes", JSONArray().also { a -> items.forEach { a.put(JSONObject().put("name", it.name).put("settings", settings(it.settings))) } })
-        .toString(2)
-
-    fun parseEnvelope(text: String): RecipeEnvelope {
-        val o = JSONObject(text)
-        require(o.keys().asSequence().toSet() == setOf("schemaVersion", "cameraModel", "recipes"))
-        require(o.getInt("schemaVersion") == 1)
-        require(o.getString("cameraModel") == "Fujifilm X-T5")
-        val a = o.getJSONArray("recipes")
-        return RecipeEnvelope(
-            recipes = List(a.length()) { i ->
-                val r = a.getJSONObject(i)
-                require(r.keys().asSequence().toSet() == setOf("name", "settings"))
-                ExportRecipe(r.getString("name").also { require(it.isNotBlank()) }, parseSettings(r.getJSONObject("settings")))
-            },
-        )
     }
 }

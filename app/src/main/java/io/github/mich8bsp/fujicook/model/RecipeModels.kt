@@ -67,8 +67,8 @@ fun FilmSimulation.isBlackAndWhite() = name.startsWith("MONOCHROME") || name.sta
 fun formatDynamicRange(v: Int) = if (v == 0) "DR Auto" else "DR$v"
 
 fun RecipeSettings.asCompleteRecipe() = copy(
-    monochromeWarmCool = null,
-    monochromeMagentaGreen = null,
+    monochromeWarmCool = if (filmSimulation.isBlackAndWhite()) monochromeWarmCool ?: 0 else null,
+    monochromeMagentaGreen = if (filmSimulation.isBlackAndWhite()) monochromeMagentaGreen ?: 0 else null,
     grainStrength = grainStrength ?: EffectStrength.OFF,
     grainSize = if ((grainStrength ?: EffectStrength.OFF) == EffectStrength.OFF) null else grainSize ?: GrainSize.SMALL,
     colorChrome = colorChrome ?: EffectStrength.OFF,

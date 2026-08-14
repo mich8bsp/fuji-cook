@@ -62,44 +62,4 @@ class RecipeRepository(private val db: RecipeDatabase) {
         current to current.current
     }
 
-    suspend fun exportCurrent(ids: Set<String>? = null): String {
-        val entries = dao.getAll().mapNotNull(::domain).filter { ids == null || it.id in ids }.map { ExportRecipe(it.name, it.current.settings) }
-        return RecipeJson.envelope(entries)
-    }
-
-    fun decodeImport(text: String): RecipeEnvelope = RecipeJson.parseEnvelope(text)
-
-    suspend fun importCurrent(envelope: RecipeEnvelope, conflict: ImportConflict): Int {
-        var imported = 0
-        envelope.recipes.forEach { incoming ->
-            val existing = dao.byName(incoming.name.trim().lowercase())
-            when {
-                existing == null -> {
-                    create(incoming.name, incoming.settings)
-                    imported++
-                }
-                conflict == ImportConflict.OVERWRITE -> {
-                    revise(existing.id, incoming.settings)
-                    imported++
-                }
-                conflict == ImportConflict.RENAME -> {
-                    var suffix = 2
-                    var name = incoming.name + " " + suffix
-                    while (dao.byName(name.lowercase()) != null) {
-                        suffix++
-                        name = incoming.name + " " + suffix
-                    }
-                    create(name, incoming.settings)
-                    imported++
-                }
-                else -> Unit
-            }
-        }
-        return imported
-    }
 }
-
-enum class ImportConflict { OVERWRITE, RENAME, SKIP }
-
-data class RecipeEnvelope(val schemaVersion: Int = 1, val cameraModel: String = "Fujifilm X-T5", val recipes: List<ExportRecipe>)
-data class ExportRecipe(val name: String, val settings: RecipeSettings)

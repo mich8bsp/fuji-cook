@@ -61,7 +61,14 @@ internal fun RecipeEditorDialog(title: String, saveLabel: String, saveEnabled: B
 internal fun SettingsEditor(settings: RecipeSettings, temperature: String, onSettingsChange: (RecipeSettings) -> Unit, onTemperatureChange: (String) -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
         RequiredSelector("Film simulation", settings.filmSimulation, FilmSimulation.entries) { film ->
-            onSettingsChange(settings.copy(filmSimulation = film, color = if (film.isBlackAndWhite()) null else settings.color ?: 0))
+            onSettingsChange(
+                settings.copy(
+                    filmSimulation = film,
+                    color = if (film.isBlackAndWhite()) null else settings.color ?: 0,
+                    monochromeWarmCool = if (film.isBlackAndWhite()) settings.monochromeWarmCool ?: 0 else null,
+                    monochromeMagentaGreen = if (film.isBlackAndWhite()) settings.monochromeMagentaGreen ?: 0 else null,
+                ),
+            )
         }
         RequiredSelector("Grain strength", settings.grainStrength ?: EffectStrength.OFF, EffectStrength.entries) { strength ->
             onSettingsChange(settings.copy(grainStrength = strength, grainSize = if (strength == EffectStrength.OFF) null else settings.grainSize ?: GrainSize.SMALL))
@@ -86,7 +93,12 @@ internal fun SettingsEditor(settings: RecipeSettings, temperature: String, onSet
         RequiredSelector("Dynamic range", settings.dynamicRange ?: 100, listOf(0, 100, 200, 400), format = ::formatDynamicRange) { onSettingsChange(settings.copy(dynamicRange = it)) }
         StepperSelector("Highlight", settings.highlightTone ?: 0.0, toneValues, format = ::formatNumber) { onSettingsChange(settings.copy(highlightTone = it)) }
         StepperSelector("Shadow", settings.shadowTone ?: 0.0, toneValues, format = ::formatNumber) { onSettingsChange(settings.copy(shadowTone = it)) }
-        if (!settings.filmSimulation.isBlackAndWhite()) StepperSelector("Color", settings.color ?: 0, (-4..4).toList()) { onSettingsChange(settings.copy(color = it)) }
+        if (settings.filmSimulation.isBlackAndWhite()) {
+            StepperSelector("WC (warm/cool)", settings.monochromeWarmCool ?: 0, (-18..18).toList()) { onSettingsChange(settings.copy(monochromeWarmCool = it)) }
+            StepperSelector("MG (magenta/green)", settings.monochromeMagentaGreen ?: 0, (-18..18).toList()) { onSettingsChange(settings.copy(monochromeMagentaGreen = it)) }
+        } else {
+            StepperSelector("Color", settings.color ?: 0, (-4..4).toList()) { onSettingsChange(settings.copy(color = it)) }
+        }
         StepperSelector("Sharpness", settings.sharpness ?: 0, (-4..4).toList()) { onSettingsChange(settings.copy(sharpness = it)) }
         StepperSelector("High ISO noise reduction", settings.highIsoNoiseReduction ?: 0, (-4..4).toList()) { onSettingsChange(settings.copy(highIsoNoiseReduction = it)) }
         StepperSelector("Clarity", settings.clarity ?: 0, (-5..5).toList()) { onSettingsChange(settings.copy(clarity = it)) }

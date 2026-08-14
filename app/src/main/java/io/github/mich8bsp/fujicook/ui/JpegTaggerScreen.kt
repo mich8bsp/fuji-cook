@@ -171,6 +171,10 @@ private fun comparisonRows(photo: RecipeSettings, recipe: RecipeSettings): List<
     add(ComparisonRow("Highlight", photo.highlightTone, recipe.highlightTone))
     add(ComparisonRow("Shadow", photo.shadowTone, recipe.shadowTone))
     if (!photo.filmSimulation.isBlackAndWhite() && !recipe.filmSimulation.isBlackAndWhite()) add(ComparisonRow("Color", photo.color, recipe.color))
+    if (photo.filmSimulation.isBlackAndWhite() || recipe.filmSimulation.isBlackAndWhite()) {
+        add(ComparisonRow("WC (warm/cool)", photo.monochromeWarmCool, recipe.monochromeWarmCool))
+        add(ComparisonRow("MG (magenta/green)", photo.monochromeMagentaGreen, recipe.monochromeMagentaGreen))
+    }
     add(ComparisonRow("Sharpness", photo.sharpness, recipe.sharpness))
     add(ComparisonRow("High ISO NR", photo.highIsoNoiseReduction, recipe.highIsoNoiseReduction))
     add(ComparisonRow("Clarity", photo.clarity, recipe.clarity))

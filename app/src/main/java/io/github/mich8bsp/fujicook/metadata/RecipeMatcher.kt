@@ -40,6 +40,8 @@ object RecipeMatcher {
         photo.highlightTone to recipe.highlightTone,
         photo.shadowTone to recipe.shadowTone,
         photo.color to recipe.color,
+        photo.monochromeWarmCool to recipe.monochromeWarmCool,
+        photo.monochromeMagentaGreen to recipe.monochromeMagentaGreen,
         photo.sharpness to recipe.sharpness,
         photo.highIsoNoiseReduction to recipe.highIsoNoiseReduction,
     )

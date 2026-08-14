@@ -50,13 +50,6 @@ class CoreTest {
     }
 
     @Test
-    fun strictJsonRoundTrip() {
-        val text = RecipeJson.envelope(listOf(ExportRecipe("Test", RecipeSettings(FilmSimulation.REALA_ACE, clarity = 2))))
-        assertEquals(FilmSimulation.REALA_ACE, RecipeJson.parseEnvelope(text).recipes.single().settings.filmSimulation)
-        assertThrows(IllegalArgumentException::class.java) { RecipeJson.parseEnvelope(text.replace("\"recipes\"", "\"unexpected\":1,\"recipes\"")) }
-    }
-
-    @Test
     fun metadataPreservesScan() {
         val scan = byteArrayOf(0xff.toByte(), 0xda.toByte(), 0, 8, 1, 1, 0, 0, 63, 0, 1, 2, 3, 0xff.toByte(), 0xd9.toByte())
         val source = byteArrayOf(0xff.toByte(), 0xd8.toByte(), 0xff.toByte(), 0xe0.toByte(), 0, 4, 1, 2) + scan
