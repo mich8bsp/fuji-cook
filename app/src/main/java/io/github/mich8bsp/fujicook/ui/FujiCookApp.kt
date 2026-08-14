@@ -1,6 +1,7 @@
 package io.github.mich8bsp.fujicook.ui
 
 import android.app.Application
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -70,6 +71,7 @@ fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
     var editing by remember { mutableStateOf<Recipe?>(null) }
     var showArchived by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<Recipe?>(null) }
+    var collapsed by remember { mutableStateOf(setOf<FilmSimulation>()) }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -84,17 +86,35 @@ fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
         if (visible.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Your library is empty. Create or import a recipe.") }
         } else {
+            val grouped = visible.groupBy { it.current.settings.filmSimulation }
             LazyColumn(Modifier.fillMaxSize()) {
-                items(visible, key = { it.id }) { recipe ->
-                    Card(onClick = { editing = recipe }, modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
-                        Row(Modifier.padding(14.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column {
-                                Text(recipe.name, style = MaterialTheme.typography.titleMedium)
-                                Text(recipe.current.settings.filmSimulation.name.replace('_', ' '))
-                            }
-                            Row {
-                                TextButton(onClick = { vm.archive(recipe.id, !recipe.archived) }) { Text(if (recipe.archived) "Restore" else "Archive") }
-                                if (recipe.archived) TextButton(onClick = { deleting = recipe }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                FilmSimulation.entries.forEach { sim ->
+                    val group = grouped[sim] ?: return@forEach
+                    val expanded = sim !in collapsed
+                    item(key = "header_$sim") {
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                .clickable { collapsed = if (expanded) collapsed + sim else collapsed - sim },
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight, null)
+                            Text(
+                                "${sim.name.replace('_', ' ')} (${group.size})",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                    if (expanded) {
+                        items(group, key = { it.id }) { recipe ->
+                            Card(onClick = { editing = recipe }, modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+                                Row(Modifier.padding(14.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(recipe.name, style = MaterialTheme.typography.titleMedium)
+                                    Row {
+                                        TextButton(onClick = { vm.archive(recipe.id, !recipe.archived) }) { Text(if (recipe.archived) "Restore" else "Archive") }
+                                        if (recipe.archived) TextButton(onClick = { deleting = recipe }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                                    }
+                                }
                             }
                         }
                     }

@@ -7,11 +7,15 @@ import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.*
@@ -46,6 +50,10 @@ class RawViewModel(app: Application) : AndroidViewModel(app) {
 
     fun toggle(id: String) {
         state = state.copy(chosen = if (id in state.chosen) state.chosen - id else state.chosen + id)
+    }
+
+    fun setGroup(ids: Collection<String>, selected: Boolean) {
+        state = state.copy(chosen = if (selected) state.chosen + ids else state.chosen - ids)
     }
 
     fun process() = viewModelScope.launch {
@@ -115,11 +123,32 @@ fun RawCompareScreen(vm: RawViewModel = viewModel()) {
             Text(if (vm.state.raf == null) "Choose RAF" else "Change RAF")
         }
         Text("Recipes", style = MaterialTheme.typography.titleMedium)
+        var collapsed by remember { mutableStateOf(setOf<FilmSimulation>()) }
+        val grouped = recipes.filterNot { it.archived }.groupBy { it.current.settings.filmSimulation }
         LazyColumn(Modifier.weight(1f)) {
-            items(recipes.filterNot { it.archived }) { r ->
-                Row(Modifier.fillMaxWidth()) {
-                    Checkbox(r.id in vm.state.chosen, { vm.toggle(r.id) })
-                    Text(r.name)
+            FilmSimulation.entries.forEach { sim ->
+                val group = grouped[sim] ?: return@forEach
+                val expanded = sim !in collapsed
+                val allChosen = group.all { it.id in vm.state.chosen }
+                item(key = "header_$sim") {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(allChosen, { vm.setGroup(group.map { it.id }, !allChosen) })
+                        Row(
+                            Modifier.weight(1f).clickable { collapsed = if (expanded) collapsed + sim else collapsed - sim },
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight, null)
+                            Text("${sim.name.replace('_', ' ')} (${group.size})", style = MaterialTheme.typography.titleMedium)
+                        }
+                    }
+                }
+                if (expanded) {
+                    items(group, key = { it.id }) { r ->
+                        Row(Modifier.fillMaxWidth().padding(start = 24.dp)) {
+                            Checkbox(r.id in vm.state.chosen, { vm.toggle(r.id) })
+                            Text(r.name)
+                        }
+                    }
                 }
             }
         }
