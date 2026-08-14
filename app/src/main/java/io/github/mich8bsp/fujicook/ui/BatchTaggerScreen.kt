@@ -34,7 +34,6 @@ data class BatchItem(
     val uri: Uri,
     val name: String,
     val thumbnail: Bitmap?,
-    val jpeg: ParsedJpeg,
     val match: MatchResult,
     val selected: MatchCandidate?,
 )
@@ -63,7 +62,7 @@ class BatchTaggerViewModel(app: Application) : AndroidViewModel(app) {
                     val ex = FujifilmMakerNote.extract(jpeg)
                     val active = RecipeMatcher.match(ex.settings, repo.matchableRevisions())
                     val match = if (active.status == MatchStatus.NO_MATCH) RecipeMatcher.match(ex.settings, repo.matchableRevisions(includeArchived = true)) else active
-                    BatchItem(uri, name, decodeThumbnail(data), jpeg, match, match.candidates.firstOrNull())
+                    BatchItem(uri, name, decodeThumbnail(data), match, match.candidates.firstOrNull())
                 }.getOrNull()
             }
         }
@@ -90,8 +89,9 @@ class BatchTaggerViewModel(app: Application) : AndroidViewModel(app) {
                 val c = item.selected ?: return@forEach
                 runCatching {
                     val fileName = suggestedFileName(item.name, c.recipe.name)
+                    val jpeg = app.contentResolver.openInputStream(item.uri)!!.use { JpegSegments.read(it) }
                     val out = requireNotNull(DocumentsContract.createDocument(app.contentResolver, folderDoc, "image/jpeg", fileName)) { "Could not create $fileName" }
-                    app.contentResolver.openOutputStream(out, "w")!!.use { JpegSegments.write(RecipeMetadata.tag(item.jpeg, c.recipe.name, c.modifiedSummary), it) }
+                    app.contentResolver.openOutputStream(out, "w")!!.use { JpegSegments.write(RecipeMetadata.tag(jpeg, c.recipe.name, c.modifiedSummary), it) }
                     saved++
                 }.onFailure { errors += item.name + ": " + (it.message ?: it.javaClass.simpleName) }
             }
