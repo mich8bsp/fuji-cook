@@ -1,6 +1,7 @@
 package io.github.mich8bsp.fujicook.ui
 
 import android.app.Application
+import android.content.Intent
 import android.hardware.usb.UsbManager
 import android.net.Uri
 import android.provider.DocumentsContract
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.*
 data class RawState(
     val raf: Uri? = null,
     val rafName: String = "image.RAF",
+    val outputTree: Uri? = null,
     val chosen: Set<String> = emptySet(),
     val busy: Boolean = false,
     val progress: String = "",
@@ -46,6 +48,13 @@ class RawViewModel(app: Application) : AndroidViewModel(app) {
         val resolver = getApplication<Application>().contentResolver
         val name = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { if (it.moveToFirst()) it.getString(0) else null } ?: "image.RAF"
         state = state.copy(raf = uri, rafName = name)
+    }
+
+    fun outputFolder(uri: Uri) {
+        getApplication<Application>().contentResolver.takePersistableUriPermission(
+            uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        )
+        state = state.copy(outputTree = uri)
     }
 
     fun toggle(id: String) {
@@ -82,45 +91,50 @@ class RawViewModel(app: Application) : AndroidViewModel(app) {
             .onFailure { state = state.copy(busy = false, progress = "", message = it.message) }
     }
 
+    private suspend fun writeResult(tree: Uri, pair: Pair<Recipe, ByteArray>): String = withContext(Dispatchers.IO) {
+        val recipeName = pair.first.name.trim().lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), "_").trim('_')
+        val base = state.rafName.substringBeforeLast('.', state.rafName)
+        val fileName = "${base}_${recipeName}.JPG"
+        val resolver = getApplication<Application>().contentResolver
+        val folderDoc = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+        val uri = requireNotNull(DocumentsContract.createDocument(resolver, folderDoc, "image/jpeg", fileName)) { "Could not create output in the chosen folder" }
+        val parsed = JpegSegments.read(ByteArrayInputStream(pair.second))
+        resolver.openOutputStream(uri, "w")!!.use { JpegSegments.write(RecipeMetadata.tag(parsed, pair.first.name), it) }
+        fileName
+    }
+
     fun save(index: Int) = viewModelScope.launch {
-        val pair = state.results[index]
-        val source = state.raf ?: return@launch
-        runCatching {
-            withContext(Dispatchers.IO) {
-                val recipeName = pair.first.name.trim().lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), "_").trim('_')
-                val base = state.rafName.substringBeforeLast('.', state.rafName)
-                val fileName = "${base}_${recipeName}.JPG"
-                val uri = createSiblingDocument(getApplication<Application>(), source, fileName)
-                val parsed = JpegSegments.read(ByteArrayInputStream(pair.second))
-                getApplication<Application>().contentResolver.openOutputStream(uri, "w")!!.use { JpegSegments.write(RecipeMetadata.tag(parsed, pair.first.name), it) }
-                fileName
-            }
-        }.onSuccess { state = state.copy(message = it + " saved next to the RAF") }
+        val tree = state.outputTree ?: run { state = state.copy(message = "Choose an output folder first"); return@launch }
+        runCatching { writeResult(tree, state.results[index]) }
+            .onSuccess { state = state.copy(message = it + " saved") }
             .onFailure { state = state.copy(message = it.message) }
     }
-}
 
-internal fun createSiblingDocument(app: Application, source: Uri, fileName: String): Uri {
-    val resolver = app.contentResolver
-    require(DocumentsContract.isDocumentUri(app, source)) { "The selected file's provider does not support saving beside the source file" }
-    val documentId = DocumentsContract.getDocumentId(source)
-    val parentId = when {
-        '/' in documentId -> documentId.substringBeforeLast('/')
-        ':' in documentId -> documentId.substringBeforeLast(':') + ":"
-        else -> error("The selected file's provider does not expose its parent folder. Choose it from phone storage or an SD card.")
+    fun saveAll() = viewModelScope.launch {
+        val tree = state.outputTree ?: run { state = state.copy(message = "Choose an output folder first"); return@launch }
+        runCatching { state.results.map { writeResult(tree, it) } }
+            .onSuccess { state = state.copy(message = "${it.size} file(s) saved") }
+            .onFailure { state = state.copy(message = it.message) }
     }
-    val parent = DocumentsContract.buildDocumentUri(source.authority!!, parentId)
-    return requireNotNull(DocumentsContract.createDocument(resolver, parent, "image/jpeg", fileName)) { "Could not create output beside the source file" }
 }
 
 @Composable
 fun RawCompareScreen(vm: RawViewModel = viewModel()) {
     val recipes by vm.recipes.collectAsState()
-    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { u -> u?.let(vm::raf) }
+    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { t -> t?.let(vm::outputFolder) }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { u ->
+        u?.let { vm.raf(it); pickFolder.launch(null) }
+    }
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("X-T5 RAW Compare", style = MaterialTheme.typography.headlineMedium)
         Button(onClick = { pick.launch(arrayOf("image/x-fuji-raf", "application/octet-stream")) }, modifier = Modifier.padding(vertical = 8.dp)) {
             Text(if (vm.state.raf == null) "Choose RAF" else "Change RAF")
+        }
+        if (vm.state.raf != null) {
+            Text(
+                if (vm.state.outputTree == null) "Pick a folder to save renders into" else "Renders will save to the chosen folder",
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
         Text("Recipes", style = MaterialTheme.typography.titleMedium)
         var collapsed by remember { mutableStateOf(setOf<FilmSimulation>()) }
@@ -157,6 +171,9 @@ fun RawCompareScreen(vm: RawViewModel = viewModel()) {
             Text(vm.state.progress)
         } else {
             Button(enabled = vm.state.raf != null && vm.state.chosen.isNotEmpty(), onClick = vm::process, modifier = Modifier.fillMaxWidth()) { Text("Render selected recipes") }
+        }
+        if (vm.state.results.size > 1) {
+            TextButton(onClick = vm::saveAll) { Text("Save all") }
         }
         vm.state.results.forEachIndexed { i, p -> TextButton(onClick = { vm.save(i) }) { Text("Save " + p.first.name) } }
         vm.state.message?.let { Text(it) }
