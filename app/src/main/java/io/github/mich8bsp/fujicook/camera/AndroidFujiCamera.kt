@@ -35,11 +35,20 @@ class AndroidFujiCamera(private val manager: UsbManager, private val device: Usb
         checkOk(r)
     }
 
+    // A single transient NAK/timeout on a bulk endpoint shouldn't abort the whole transfer;
+    // give it one retry before treating it as a real connection failure.
+    private fun bulk(endpoint: UsbEndpoint, buffer: ByteArray, offset: Int, length: Int, timeoutMs: Int): Int {
+        val first = connection.bulkTransfer(endpoint, buffer, offset, length, timeoutMs)
+        if (first > 0) return first
+        Thread.sleep(200)
+        return connection.bulkTransfer(endpoint, buffer, offset, length, timeoutMs)
+    }
+
     private fun transfer(bytes: ByteArray) {
         var at = 0
         while (at < bytes.size) {
             val n = minOf(16 * 1024, bytes.size - at)
-            val sent = connection.bulkTransfer(output, bytes, at, n, 30000)
+            val sent = bulk(output, bytes, at, n, 30000)
             require(sent > 0) { "USB write failed on endpoint 0x" + output.address.toString(16) + " after " + at + "/" + bytes.size + " bytes" }
             at += sent
         }
@@ -47,7 +56,7 @@ class AndroidFujiCamera(private val manager: UsbManager, private val device: Usb
 
     private fun receive(operation: String, timeoutMs: Int): PtpContainer {
         val first = ByteArray(16 * 1024)
-        val got = connection.bulkTransfer(input, first, first.size, timeoutMs)
+        val got = bulk(input, first, 0, first.size, timeoutMs)
         require(got >= 12) { operation + ": USB read failed on endpoint 0x" + input.address.toString(16) + " after " + timeoutMs / 1000 + "s (result " + got + ")" }
         val size = ByteBuffer.wrap(first, 0, 4).order(ByteOrder.LITTLE_ENDIAN).int
         require(size in 12..100 * 1024 * 1024) { operation + ": invalid PTP container size " + size }
@@ -55,7 +64,7 @@ class AndroidFujiCamera(private val manager: UsbManager, private val device: Usb
         first.copyInto(all, 0, 0, minOf(got, size))
         var at = minOf(got, size)
         while (at < size) {
-            val n = connection.bulkTransfer(input, all, at, minOf(16 * 1024, size - at), timeoutMs)
+            val n = bulk(input, all, at, minOf(16 * 1024, size - at), timeoutMs)
             require(n > 0) { operation + ": USB read failed after " + at + "/" + size + " bytes" }
             at += n
         }

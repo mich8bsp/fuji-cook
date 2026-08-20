@@ -83,11 +83,17 @@ class RawViewModel(app: Application) : AndroidViewModel(app) {
     fun refreshConnection() {
         val manager = getApplication<Application>().getSystemService(UsbManager::class.java)
         val device = device()
-        state = state.copy(connection = when {
+        val newStatus = when {
             device == null -> ConnectionStatus.NOT_FOUND
             !manager.hasPermission(device) -> ConnectionStatus.NEEDS_PERMISSION
             else -> ConnectionStatus.CONNECTED
-        })
+        }
+        // Auto-grant only happens on a cold launch via the manifest's device_filter intent.
+        // If the app is already open when the camera attaches, permission is never asked
+        // unless we request it ourselves here.
+        val shouldRequest = newStatus == ConnectionStatus.NEEDS_PERMISSION && state.connection != ConnectionStatus.NEEDS_PERMISSION
+        state = state.copy(connection = newStatus)
+        if (shouldRequest) requestPermission()
     }
 
     fun requestPermission() {
@@ -142,28 +148,40 @@ class RawViewModel(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.IO) {
                 val app = getApplication<Application>()
                 val manager = app.getSystemService(UsbManager::class.java)
-                val device = device() ?: error("X-T5 not connected")
-                require(manager.hasPermission(device)) { "USB permission required. Tap Request permission." }
                 val bytes = app.contentResolver.openInputStream(source)!!.use { it.readBytes() }
                 val resolver = app.contentResolver
                 val folderDoc = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
                 val base = state.rafName.substringBeforeLast('.', state.rafName)
                 var saved = 0
-                AndroidFujiCamera(manager, device).use { camera ->
-                    camera.open()
-                    camera.sendRaf(bytes)
-                    val original = camera.getProfile()
-                    selected.forEach { recipe ->
-                        withContext(Dispatchers.Main) { state = state.copy(progress = "Rendering " + recipe.name) }
-                        camera.setProfile(FujiProfile.build(original, recipe.current.settings))
-                        val rendered = camera.convert()
-                        val recipeName = recipe.name.trim().lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), "_").trim('_')
-                        val fileName = "${base}_${recipeName}.JPG"
-                        val outUri = requireNotNull(DocumentsContract.createDocument(resolver, folderDoc, "image/jpeg", fileName)) { "Could not create output in the chosen folder" }
-                        val parsed = JpegSegments.read(ByteArrayInputStream(rendered))
-                        resolver.openOutputStream(outUri, "w")!!.use { JpegSegments.write(RecipeMetadata.tag(parsed, recipe.name), it) }
-                        saved++
+                var remaining = selected
+                var attempt = 0
+                // The USB connection can drop mid-batch; reopen the session and resume with
+                // whatever recipes haven't been rendered yet instead of losing the whole batch.
+                while (remaining.isNotEmpty()) {
+                    attempt++
+                    val device = device() ?: error("X-T5 not connected")
+                    require(manager.hasPermission(device)) { "USB permission required. Tap Request permission." }
+                    val result = runCatching {
+                        AndroidFujiCamera(manager, device).use { camera ->
+                            camera.open()
+                            camera.sendRaf(bytes)
+                            val original = camera.getProfile()
+                            remaining.forEach { recipe ->
+                                withContext(Dispatchers.Main) { state = state.copy(progress = "Rendering " + recipe.name) }
+                                camera.setProfile(FujiProfile.build(original, recipe.current.settings))
+                                val rendered = camera.convert()
+                                val recipeName = recipe.name.trim().lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), "_").trim('_')
+                                val fileName = "${base}_${recipeName}.JPG"
+                                val outUri = requireNotNull(DocumentsContract.createDocument(resolver, folderDoc, "image/jpeg", fileName)) { "Could not create output in the chosen folder" }
+                                val parsed = JpegSegments.read(ByteArrayInputStream(rendered))
+                                resolver.openOutputStream(outUri, "w")!!.use { JpegSegments.write(RecipeMetadata.tag(parsed, recipe.name), it) }
+                                saved++
+                                remaining = remaining.drop(1)
+                            }
+                        }
                     }
+                    if (result.isFailure && (attempt >= 3 || remaining.isEmpty())) throw result.exceptionOrNull()!!
+                    if (result.isFailure) delay(1000)
                 }
                 saved
             }
