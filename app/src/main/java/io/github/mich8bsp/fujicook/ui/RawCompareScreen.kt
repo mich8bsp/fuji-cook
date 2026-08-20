@@ -233,7 +233,10 @@ fun RawCompareScreen(vm: RawViewModel = viewModel()) {
             )
         }
         var filterExpanded by remember { mutableStateOf(false) }
-        Row(Modifier.fillMaxWidth().clickable { filterExpanded = !filterExpanded }, verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth().clickable { filterExpanded = !filterExpanded }.padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Icon(if (filterExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight, null)
             Text(
                 "Filter by tags" + if (vm.state.filterTags.isNotEmpty()) " (${vm.state.filterTags.size})" else "",
@@ -250,7 +253,11 @@ fun RawCompareScreen(vm: RawViewModel = viewModel()) {
                 }
             }
         }
-        Text("Recipes", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Recipes",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+        )
         var collapsed by remember { mutableStateOf(setOf<FilmSimulation>()) }
         val filtered = recipes.filterNot { it.archived }.filter { matchesFilter(it.current.settings.tags, vm.state.filterTags) }
         val grouped = filtered.groupBy { it.current.settings.filmSimulation }
@@ -273,7 +280,10 @@ fun RawCompareScreen(vm: RawViewModel = viewModel()) {
                 }
                 if (expanded) {
                     items(group, key = { it.id }) { r ->
-                        Row(Modifier.fillMaxWidth().padding(start = 24.dp)) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(start = 24.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Checkbox(r.id in vm.state.chosen, { vm.toggle(r.id) })
                             Text(r.name)
                         }

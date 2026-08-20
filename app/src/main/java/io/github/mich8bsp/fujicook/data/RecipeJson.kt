@@ -6,7 +6,7 @@ import org.json.JSONObject
 
 object RecipeJson {
     private val keys = setOf(
-        "filmSimulation", "tags", "monochromeWarmCool", "monochromeMagentaGreen", "grainStrength", "grainSize",
+        "filmSimulation", "tags", "category", "monochromeWarmCool", "monochromeMagentaGreen", "grainStrength", "grainSize",
         "colorChrome", "colorChromeBlue", "smoothSkin", "whiteBalance", "whiteBalanceTemperature",
         "whiteBalanceRed", "whiteBalanceBlue", "dynamicRange", "highlightTone", "shadowTone",
         "color", "sharpness", "highIsoNoiseReduction", "clarity", "colorSpace",
