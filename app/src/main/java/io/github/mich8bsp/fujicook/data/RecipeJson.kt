@@ -1,6 +1,7 @@
 package io.github.mich8bsp.fujicook.data
 
 import io.github.mich8bsp.fujicook.model.*
+import org.json.JSONArray
 import org.json.JSONObject
 
 object RecipeJson {
@@ -63,5 +64,20 @@ object RecipeJson {
             clarity = int("clarity"),
             colorSpace = null,
         ).asCompleteRecipe().also { it.validate() }
+    }
+
+    fun recipe(r: Recipe) = JSONObject().apply {
+        put("id", r.id)
+        put("name", r.name)
+        put("archived", r.archived)
+        put("createdAt", r.createdAt)
+        put("updatedAt", r.updatedAt)
+        put("settings", settings(r.current.settings))
+    }
+
+    fun exportAll(recipes: List<Recipe>): String {
+        val array = JSONArray()
+        recipes.forEach { array.put(recipe(it)) }
+        return array.toString(2)
     }
 }

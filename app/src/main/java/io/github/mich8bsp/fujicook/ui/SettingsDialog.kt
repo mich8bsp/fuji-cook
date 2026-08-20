@@ -25,19 +25,23 @@ import io.github.mich8bsp.fujicook.model.*
 private val toneValues = (0..12).map { -2.0 + it * 0.5 }
 
 @Composable
-fun SettingsDialog(initial: RecipeSettings, onDismiss: () -> Unit, onSave: (RecipeSettings) -> Unit) {
+fun SettingsDialog(initialName: String, initial: RecipeSettings, onDismiss: () -> Unit, onSave: (String, RecipeSettings) -> Unit) {
+    var name by remember { mutableStateOf(initialName) }
     var settings by remember { mutableStateOf(initial.asCompleteRecipe()) }
     var temperature by remember { mutableStateOf(initial.whiteBalanceTemperature?.toString() ?: "5000") }
     val temperatureValid = settings.whiteBalance != WhiteBalance.TEMPERATURE || temperature.toIntOrNull()?.let { it in 2500..10000 } == true
     RecipeEditorDialog(
-        title = "Edit recipe", saveLabel = "Save", saveEnabled = temperatureValid,
+        title = "Edit recipe", saveLabel = "Save", saveEnabled = name.isNotBlank() && temperatureValid,
         onDismiss = onDismiss,
         onSave = {
             val result = settings.copy(whiteBalanceTemperature = if (settings.whiteBalance == WhiteBalance.TEMPERATURE) temperature.toInt() else null)
             result.validate()
-            onSave(result)
+            onSave(name, result)
         },
-    ) { SettingsEditor(settings, temperature, { settings = it }, { temperature = it.filter(Char::isDigit) }) }
+    ) {
+        OutlinedTextField(name, { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp))
+        SettingsEditor(settings, temperature, { settings = it }, { temperature = it.filter(Char::isDigit) }, Modifier.weight(1f))
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

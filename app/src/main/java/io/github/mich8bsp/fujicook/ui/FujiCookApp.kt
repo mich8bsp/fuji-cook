@@ -1,6 +1,8 @@
 package io.github.mich8bsp.fujicook.ui
 
 import android.app.Application
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,7 +20,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.mich8bsp.fujicook.FujiCookApplication
+import io.github.mich8bsp.fujicook.data.RecipeJson
 import io.github.mich8bsp.fujicook.model.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -59,9 +63,20 @@ class RecipesViewModel(app: Application) : AndroidViewModel(app) {
 
     fun create(name: String, settings: RecipeSettings) = viewModelScope.launch { runCatching { repo.create(name, settings) }.onFailure { error = it.message } }
     fun archive(id: String, value: Boolean) = viewModelScope.launch { repo.archive(id, value) }
-    fun revise(recipe: Recipe, settings: RecipeSettings) = viewModelScope.launch { runCatching { repo.revise(recipe.id, settings) }.onFailure { error = it.message } }
+    fun revise(recipe: Recipe, name: String, settings: RecipeSettings) = viewModelScope.launch {
+        runCatching {
+            if (name != recipe.name) repo.rename(recipe.id, name)
+            repo.revise(recipe.id, settings)
+        }.onFailure { error = it.message }
+    }
     fun delete(recipe: Recipe) = viewModelScope.launch { runCatching { repo.delete(recipe.id) }.onFailure { error = it.message } }
     fun clearError() { error = null }
+
+    fun export(uri: android.net.Uri) = viewModelScope.launch(Dispatchers.IO) {
+        runCatching {
+            getApplication<Application>().contentResolver.openOutputStream(uri)!!.use { it.write(RecipeJson.exportAll(recipes.value).toByteArray()) }
+        }.onFailure { error = it.message }
+    }
 }
 
 @Composable
@@ -72,11 +87,17 @@ fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
     var showArchived by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<Recipe?>(null) }
     var collapsed by remember { mutableStateOf(setOf<FilmSimulation>()) }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) vm.export(uri)
+    }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Recipes", style = MaterialTheme.typography.headlineMedium)
-            FilledTonalButton(onClick = { adding = true }) { Icon(Icons.Default.Add, null); Text("New") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilledTonalButton(onClick = { exportLauncher.launch("fuji-cook-recipes.json") }) { Icon(Icons.Default.Share, null); Text("Export") }
+                FilledTonalButton(onClick = { adding = true }) { Icon(Icons.Default.Add, null); Text("New") }
+            }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(showArchived, { showArchived = it })
@@ -123,7 +144,7 @@ fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
         }
     }
     if (adding) RecipeDialog(onDismiss = { adding = false }, onSave = { name, settings -> vm.create(name, settings); adding = false })
-    editing?.let { recipe -> SettingsDialog(recipe.current.settings, onDismiss = { editing = null }, onSave = { settings -> vm.revise(recipe, settings); editing = null }) }
+    editing?.let { recipe -> SettingsDialog(recipe.name, recipe.current.settings, onDismiss = { editing = null }, onSave = { name, settings -> vm.revise(recipe, name, settings); editing = null }) }
     deleting?.let { recipe ->
         AlertDialog(
             onDismissRequest = { deleting = null },
