@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
@@ -74,9 +75,7 @@ internal fun SettingsEditor(settings: RecipeSettings, temperature: String, onSet
                 ),
             )
         }
-        RequiredSelector("Category", settings.category, listOf(null) + RecipeCategory.entries, format = { it?.label() ?: "No Category" }) {
-            onSettingsChange(settings.copy(category = it))
-        }
+        TagSelector(settings.tags) { onSettingsChange(settings.copy(tags = it)) }
         RequiredSelector("Grain strength", settings.grainStrength ?: EffectStrength.OFF, EffectStrength.entries) { strength ->
             onSettingsChange(settings.copy(grainStrength = strength, grainSize = if (strength == EffectStrength.OFF) null else settings.grainSize ?: GrainSize.SMALL))
         }
@@ -110,6 +109,46 @@ internal fun SettingsEditor(settings: RecipeSettings, temperature: String, onSet
         StepperSelector("High ISO noise reduction", settings.highIsoNoiseReduction ?: 0, (-4..4).toList()) { onSettingsChange(settings.copy(highIsoNoiseReduction = it)) }
         StepperSelector("Clarity", settings.clarity ?: 0, (-5..5).toList()) { onSettingsChange(settings.copy(clarity = it)) }
     }
+}
+
+fun RecipeTag.color(): Color = when (this) {
+    RecipeTag.SUNNY -> Color(0xFFF9A825)
+    RecipeTag.OVERCAST -> Color(0xFF455A64)
+    RecipeTag.GOLDEN_HOUR -> Color(0xFFEF6C00)
+    RecipeTag.LOW_LIGHT -> Color(0xFF303F9F)
+    RecipeTag.NIGHT -> Color(0xFF1A237E)
+    RecipeTag.PORTRAIT -> Color(0xFFAD1457)
+    RecipeTag.WILDLIFE -> Color(0xFF6D4C41)
+    RecipeTag.URBAN -> Color(0xFF37474F)
+    RecipeTag.NATURE -> Color(0xFF2E7D32)
+    RecipeTag.WARM -> Color(0xFFE65100)
+    RecipeTag.COOL -> Color(0xFF0277BD)
+    RecipeTag.NEUTRAL -> Color(0xFF616161)
+    RecipeTag.BW -> Color(0xFF212121)
+    RecipeTag.VIBRANT -> Color(0xFF6A1B9A)
+    RecipeTag.MUTED -> Color(0xFF757575)
+}
+
+@Composable
+fun TagChip(tag: RecipeTag, modifier: Modifier = Modifier) {
+    Surface(color = tag.color(), shape = MaterialTheme.shapes.small, modifier = modifier) {
+        Text(tag.label(), style = MaterialTheme.typography.labelSmall, color = Color.White, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+    }
+}
+
+@Composable
+internal fun TagSelector(selected: Set<RecipeTag>, onChange: (Set<RecipeTag>) -> Unit) {
+    Column(Modifier.padding(vertical = 6.dp)) {
+        Text("Tags", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 4.dp))
+        TagGroup.entries.forEach { group ->
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+                RecipeTag.entries.filter { it.group() == group }.forEach { tag ->
+                    FilterChip(selected = tag in selected, onClick = { onChange(if (tag in selected) selected - tag else selected + tag) }, label = { Text(tag.label()) })
+                }
+            }
+        }
+    }
+    HorizontalDivider()
 }
 
 @Composable

@@ -18,22 +18,43 @@ enum class WhiteBalance {
 }
 enum class ColorSpace { SRGB, ADOBE_RGB }
 
-enum class RecipeCategory { BW, NIGHT, DRAMA, COLD_WINTER, WARM_SUMMER, OVERCAST_GLOOM, GREEN_NATURE, DAYLIGHT }
+enum class RecipeTag {
+    SUNNY, OVERCAST, GOLDEN_HOUR, LOW_LIGHT, NIGHT,
+    PORTRAIT, WILDLIFE, URBAN, NATURE,
+    WARM, COOL, NEUTRAL, BW,
+    VIBRANT, MUTED,
+}
 
-fun RecipeCategory.label(): String = when (this) {
-    RecipeCategory.BW -> "B&W"
-    RecipeCategory.NIGHT -> "Night"
-    RecipeCategory.DRAMA -> "Drama"
-    RecipeCategory.COLD_WINTER -> "Cold Winter"
-    RecipeCategory.WARM_SUMMER -> "Warm Summer"
-    RecipeCategory.OVERCAST_GLOOM -> "Overcast Gloom"
-    RecipeCategory.GREEN_NATURE -> "Green Nature"
-    RecipeCategory.DAYLIGHT -> "Daylight"
+enum class TagGroup(val label: String) { LIGHT("Light"), SUBJECT("Subject"), WHITE_BALANCE("White Balance"), TONE("Tone") }
+
+fun RecipeTag.group(): TagGroup = when (this) {
+    RecipeTag.SUNNY, RecipeTag.OVERCAST, RecipeTag.GOLDEN_HOUR, RecipeTag.LOW_LIGHT, RecipeTag.NIGHT -> TagGroup.LIGHT
+    RecipeTag.PORTRAIT, RecipeTag.WILDLIFE, RecipeTag.URBAN, RecipeTag.NATURE -> TagGroup.SUBJECT
+    RecipeTag.WARM, RecipeTag.COOL, RecipeTag.NEUTRAL, RecipeTag.BW -> TagGroup.WHITE_BALANCE
+    RecipeTag.VIBRANT, RecipeTag.MUTED -> TagGroup.TONE
+}
+
+fun RecipeTag.label(): String = when (this) {
+    RecipeTag.SUNNY -> "Sunny"
+    RecipeTag.OVERCAST -> "Overcast"
+    RecipeTag.GOLDEN_HOUR -> "Golden Hour"
+    RecipeTag.LOW_LIGHT -> "Low-Light"
+    RecipeTag.NIGHT -> "Night"
+    RecipeTag.PORTRAIT -> "Portrait"
+    RecipeTag.WILDLIFE -> "Wildlife"
+    RecipeTag.URBAN -> "Urban"
+    RecipeTag.NATURE -> "Nature"
+    RecipeTag.WARM -> "Warm"
+    RecipeTag.COOL -> "Cool"
+    RecipeTag.NEUTRAL -> "Neutral"
+    RecipeTag.BW -> "B&W"
+    RecipeTag.VIBRANT -> "Vibrant"
+    RecipeTag.MUTED -> "Muted"
 }
 
 data class RecipeSettings(
     val filmSimulation: FilmSimulation,
-    val category: RecipeCategory? = null,
+    val tags: Set<RecipeTag> = emptySet(),
     val monochromeWarmCool: Int? = null,
     val monochromeMagentaGreen: Int? = null,
     val grainStrength: EffectStrength? = null,

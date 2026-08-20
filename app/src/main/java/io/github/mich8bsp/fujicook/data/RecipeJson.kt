@@ -6,7 +6,7 @@ import org.json.JSONObject
 
 object RecipeJson {
     private val keys = setOf(
-        "filmSimulation", "category", "monochromeWarmCool", "monochromeMagentaGreen", "grainStrength", "grainSize",
+        "filmSimulation", "tags", "monochromeWarmCool", "monochromeMagentaGreen", "grainStrength", "grainSize",
         "colorChrome", "colorChromeBlue", "smoothSkin", "whiteBalance", "whiteBalanceTemperature",
         "whiteBalanceRed", "whiteBalanceBlue", "dynamicRange", "highlightTone", "shadowTone",
         "color", "sharpness", "highIsoNoiseReduction", "clarity", "colorSpace",
@@ -14,7 +14,7 @@ object RecipeJson {
 
     fun settings(s: RecipeSettings) = JSONObject().apply {
         put("filmSimulation", s.filmSimulation.name)
-        putOpt("category", s.category?.name)
+        put("tags", JSONArray(s.tags.map { it.name }))
         putOpt("monochromeWarmCool", s.monochromeWarmCool)
         putOpt("monochromeMagentaGreen", s.monochromeMagentaGreen)
         putOpt("grainStrength", s.grainStrength?.name)
@@ -41,9 +41,14 @@ object RecipeJson {
         fun <T : Enum<T>> en(k: String, values: Array<T>): T? =
             if (o.has(k)) values.firstOrNull { it.name == o.getString(k) } ?: error("Invalid $k") else null
 
+        val tags = if (o.has("tags")) {
+            val arr = o.getJSONArray("tags")
+            (0 until arr.length()).map { i -> RecipeTag.entries.firstOrNull { it.name == arr.getString(i) } ?: error("Invalid tag") }.toSet()
+        } else emptySet()
+
         return RecipeSettings(
             filmSimulation = FilmSimulation.valueOf(o.getString("filmSimulation")),
-            category = en("category", RecipeCategory.entries.toTypedArray()),
+            tags = tags,
             monochromeWarmCool = int("monochromeWarmCool"),
             monochromeMagentaGreen = int("monochromeMagentaGreen"),
             grainStrength = en("grainStrength", EffectStrength.entries.toTypedArray()),

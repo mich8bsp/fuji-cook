@@ -49,7 +49,11 @@ data class RawState(
     val progress: String = "",
     val message: String? = null,
     val connection: ConnectionStatus = ConnectionStatus.NOT_FOUND,
+    val filterTags: Set<RecipeTag> = emptySet(),
 )
+
+private fun matchesFilter(recipeTags: Set<RecipeTag>, filterTags: Set<RecipeTag>): Boolean =
+    filterTags.groupBy { it.group() }.all { (_, tags) -> recipeTags.any { it in tags } }
 
 private const val ACTION_USB_PERMISSION = "io.github.mich8bsp.fujicook.USB_PERMISSION"
 
@@ -139,6 +143,10 @@ class RawViewModel(app: Application) : AndroidViewModel(app) {
         state = state.copy(chosen = if (selected) state.chosen + ids else state.chosen - ids)
     }
 
+    fun toggleFilterTag(tag: RecipeTag) {
+        state = state.copy(filterTags = if (tag in state.filterTags) state.filterTags - tag else state.filterTags + tag)
+    }
+
     fun process() = viewModelScope.launch {
         val source = state.raf ?: return@launch
         val tree = state.outputTree ?: run { state = state.copy(message = "Choose an output folder first"); return@launch }
@@ -224,23 +232,42 @@ fun RawCompareScreen(vm: RawViewModel = viewModel()) {
                 style = MaterialTheme.typography.bodySmall,
             )
         }
+        var filterExpanded by remember { mutableStateOf(false) }
+        Row(Modifier.fillMaxWidth().clickable { filterExpanded = !filterExpanded }, verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (filterExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight, null)
+            Text(
+                "Filter by tags" + if (vm.state.filterTags.isNotEmpty()) " (${vm.state.filterTags.size})" else "",
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+        if (filterExpanded) {
+            TagGroup.entries.forEach { group ->
+                Text(group.label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+                    RecipeTag.entries.filter { it.group() == group }.forEach { tag ->
+                        FilterChip(selected = tag in vm.state.filterTags, onClick = { vm.toggleFilterTag(tag) }, label = { Text(tag.label()) })
+                    }
+                }
+            }
+        }
         Text("Recipes", style = MaterialTheme.typography.titleMedium)
-        var collapsed by remember { mutableStateOf(setOf<RecipeCategory?>()) }
-        val grouped = recipes.filterNot { it.archived }.groupBy { it.current.settings.category }
+        var collapsed by remember { mutableStateOf(setOf<FilmSimulation>()) }
+        val filtered = recipes.filterNot { it.archived }.filter { matchesFilter(it.current.settings.tags, vm.state.filterTags) }
+        val grouped = filtered.groupBy { it.current.settings.filmSimulation }
         LazyColumn(Modifier.weight(1f)) {
-            (RecipeCategory.entries + listOf(null)).forEach { cat ->
-                val group = grouped[cat] ?: return@forEach
-                val expanded = cat !in collapsed
+            FilmSimulation.entries.forEach { sim ->
+                val group = grouped[sim] ?: return@forEach
+                val expanded = sim !in collapsed
                 val allChosen = group.all { it.id in vm.state.chosen }
-                item(key = "header_$cat") {
+                item(key = "header_$sim") {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(allChosen, { vm.setGroup(group.map { it.id }, !allChosen) })
                         Row(
-                            Modifier.weight(1f).clickable { collapsed = if (expanded) collapsed + cat else collapsed - cat },
+                            Modifier.weight(1f).clickable { collapsed = if (expanded) collapsed + sim else collapsed - sim },
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight, null)
-                            Text("${cat?.label() ?: "No Category"} (${group.size})", style = MaterialTheme.typography.titleMedium)
+                            Text("${sim.name.replace('_', ' ')} (${group.size})", style = MaterialTheme.typography.titleMedium)
                         }
                     }
                 }

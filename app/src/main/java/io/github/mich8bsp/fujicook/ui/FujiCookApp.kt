@@ -4,7 +4,9 @@ import android.app.Application
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -129,8 +131,14 @@ fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
                     if (expanded) {
                         items(group, key = { it.id }) { recipe ->
                             Card(onClick = { editing = recipe }, modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
-                                Row(Modifier.padding(14.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Row(Modifier.padding(14.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     Text(recipe.name, style = MaterialTheme.typography.titleMedium)
+                                    Row(
+                                        Modifier.weight(1f).padding(horizontal = 8.dp).horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        recipe.current.settings.tags.sortedBy { it.ordinal }.forEach { tag -> TagChip(tag) }
+                                    }
                                     Row {
                                         TextButton(onClick = { vm.archive(recipe.id, !recipe.archived) }) { Text(if (recipe.archived) "Restore" else "Archive") }
                                         if (recipe.archived) TextButton(onClick = { deleting = recipe }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
