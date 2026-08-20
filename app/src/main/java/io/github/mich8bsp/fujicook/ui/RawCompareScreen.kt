@@ -207,22 +207,22 @@ fun RawCompareScreen(vm: RawViewModel = viewModel()) {
             )
         }
         Text("Recipes", style = MaterialTheme.typography.titleMedium)
-        var collapsed by remember { mutableStateOf(setOf<FilmSimulation>()) }
-        val grouped = recipes.filterNot { it.archived }.groupBy { it.current.settings.filmSimulation }
+        var collapsed by remember { mutableStateOf(setOf<RecipeCategory?>()) }
+        val grouped = recipes.filterNot { it.archived }.groupBy { it.current.settings.category }
         LazyColumn(Modifier.weight(1f)) {
-            FilmSimulation.entries.forEach { sim ->
-                val group = grouped[sim] ?: return@forEach
-                val expanded = sim !in collapsed
+            (RecipeCategory.entries + listOf(null)).forEach { cat ->
+                val group = grouped[cat] ?: return@forEach
+                val expanded = cat !in collapsed
                 val allChosen = group.all { it.id in vm.state.chosen }
-                item(key = "header_$sim") {
+                item(key = "header_$cat") {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(allChosen, { vm.setGroup(group.map { it.id }, !allChosen) })
                         Row(
-                            Modifier.weight(1f).clickable { collapsed = if (expanded) collapsed + sim else collapsed - sim },
+                            Modifier.weight(1f).clickable { collapsed = if (expanded) collapsed + cat else collapsed - cat },
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight, null)
-                            Text("${sim.name.replace('_', ' ')} (${group.size})", style = MaterialTheme.typography.titleMedium)
+                            Text("${cat?.label() ?: "No Category"} (${group.size})", style = MaterialTheme.typography.titleMedium)
                         }
                     }
                 }

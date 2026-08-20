@@ -70,6 +70,9 @@ internal fun SettingsEditor(settings: RecipeSettings, temperature: String, onSet
                 ),
             )
         }
+        RequiredSelector("Category", settings.category, listOf(null) + RecipeCategory.entries, format = { it?.label() ?: "No Category" }) {
+            onSettingsChange(settings.copy(category = it))
+        }
         RequiredSelector("Grain strength", settings.grainStrength ?: EffectStrength.OFF, EffectStrength.entries) { strength ->
             onSettingsChange(settings.copy(grainStrength = strength, grainSize = if (strength == EffectStrength.OFF) null else settings.grainSize ?: GrainSize.SMALL))
         }

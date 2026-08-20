@@ -5,7 +5,7 @@ import org.json.JSONObject
 
 object RecipeJson {
     private val keys = setOf(
-        "filmSimulation", "monochromeWarmCool", "monochromeMagentaGreen", "grainStrength", "grainSize",
+        "filmSimulation", "category", "monochromeWarmCool", "monochromeMagentaGreen", "grainStrength", "grainSize",
         "colorChrome", "colorChromeBlue", "smoothSkin", "whiteBalance", "whiteBalanceTemperature",
         "whiteBalanceRed", "whiteBalanceBlue", "dynamicRange", "highlightTone", "shadowTone",
         "color", "sharpness", "highIsoNoiseReduction", "clarity", "colorSpace",
@@ -13,6 +13,7 @@ object RecipeJson {
 
     fun settings(s: RecipeSettings) = JSONObject().apply {
         put("filmSimulation", s.filmSimulation.name)
+        putOpt("category", s.category?.name)
         putOpt("monochromeWarmCool", s.monochromeWarmCool)
         putOpt("monochromeMagentaGreen", s.monochromeMagentaGreen)
         putOpt("grainStrength", s.grainStrength?.name)
@@ -41,6 +42,7 @@ object RecipeJson {
 
         return RecipeSettings(
             filmSimulation = FilmSimulation.valueOf(o.getString("filmSimulation")),
+            category = en("category", RecipeCategory.entries.toTypedArray()),
             monochromeWarmCool = int("monochromeWarmCool"),
             monochromeMagentaGreen = int("monochromeMagentaGreen"),
             grainStrength = en("grainStrength", EffectStrength.entries.toTypedArray()),

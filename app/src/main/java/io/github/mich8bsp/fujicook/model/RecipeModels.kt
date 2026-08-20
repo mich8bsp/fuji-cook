@@ -18,8 +18,22 @@ enum class WhiteBalance {
 }
 enum class ColorSpace { SRGB, ADOBE_RGB }
 
+enum class RecipeCategory { BW, NIGHT, DRAMA, COLD_WINTER, WARM_SUMMER, OVERCAST_GLOOM, GREEN_NATURE, DAYLIGHT }
+
+fun RecipeCategory.label(): String = when (this) {
+    RecipeCategory.BW -> "B&W"
+    RecipeCategory.NIGHT -> "Night"
+    RecipeCategory.DRAMA -> "Drama"
+    RecipeCategory.COLD_WINTER -> "Cold Winter"
+    RecipeCategory.WARM_SUMMER -> "Warm Summer"
+    RecipeCategory.OVERCAST_GLOOM -> "Overcast Gloom"
+    RecipeCategory.GREEN_NATURE -> "Green Nature"
+    RecipeCategory.DAYLIGHT -> "Daylight"
+}
+
 data class RecipeSettings(
     val filmSimulation: FilmSimulation,
+    val category: RecipeCategory? = null,
     val monochromeWarmCool: Int? = null,
     val monochromeMagentaGreen: Int? = null,
     val grainStrength: EffectStrength? = null,
