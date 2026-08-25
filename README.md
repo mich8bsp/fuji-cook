@@ -10,6 +10,8 @@ Fuji Cook is an offline Android app for managing Fujifilm X-T5 film-simulation r
 
 ## Build
 
+https://github.com/mich8bsp/fuji-cook/releases/download/v0.0.1/fuji-cook.apk
+
 Open the repository in Android Studio or run `./gradlew testDebugUnitTest assembleDebug`. No network permission or backend is used.
 
 See [product specification](docs/PRODUCT_SPEC.md), [architecture](docs/ARCHITECTURE.md), [JSON format](docs/JSON_FORMAT.md), and [implementation plan](docs/IMPLEMENTATION_PLAN.md).
