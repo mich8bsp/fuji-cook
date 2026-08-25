@@ -27,6 +27,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.*
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -40,7 +41,7 @@ import kotlinx.coroutines.flow.*
 
 enum class ConnectionStatus { NOT_FOUND, NEEDS_PERMISSION, CONNECTED }
 
-data class RawState(
+data class RecipeRenderState(
     val raf: Uri? = null,
     val rafName: String = "image.RAF",
     val outputTree: Uri? = null,
@@ -57,9 +58,9 @@ private fun matchesFilter(recipeTags: Set<RecipeTag>, filterTags: Set<RecipeTag>
 
 private const val ACTION_USB_PERMISSION = "io.github.mich8bsp.fujicook.USB_PERMISSION"
 
-class RawViewModel(app: Application) : AndroidViewModel(app) {
+class RecipeRenderViewModel(app: Application) : AndroidViewModel(app) {
     val recipes = (app as FujiCookApplication).recipes.recipes.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    var state by mutableStateOf(RawState()); private set
+    var state by mutableStateOf(RecipeRenderState()); private set
 
     private val usbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) = refreshConnection()
@@ -81,7 +82,7 @@ class RawViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun device(): UsbDevice? {
         val manager = getApplication<Application>().getSystemService(UsbManager::class.java)
-        return manager.deviceList.values.firstOrNull { it.vendorId == AndroidFujiCamera.VENDOR && it.productId == AndroidFujiCamera.XT5 }
+        return manager.deviceList.values.firstOrNull { it.vendorId == AndroidFujiCamera.VENDOR }
     }
 
     fun refreshConnection() {
@@ -107,19 +108,6 @@ class RawViewModel(app: Application) : AndroidViewModel(app) {
         val intent = Intent(ACTION_USB_PERMISSION).setPackage(app.packageName)
         val pendingIntent = PendingIntent.getBroadcast(app, 0, intent, PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         manager.requestPermission(device, pendingIntent)
-    }
-
-    fun resetConnection() = viewModelScope.launch {
-        val manager = getApplication<Application>().getSystemService(UsbManager::class.java)
-        val device = device() ?: run { state = state.copy(message = "Camera not found. Check the USB cable."); return@launch }
-        runCatching {
-            withContext(Dispatchers.IO) {
-                require(manager.hasPermission(device)) { "USB permission required. Tap Request permission." }
-                AndroidFujiCamera(manager, device).use { it.open() }
-            }
-        }.onSuccess { state = state.copy(message = "Connection reset") }
-            .onFailure { state = state.copy(message = it.message) }
-        refreshConnection()
     }
 
     fun raf(uri: Uri) {
@@ -175,7 +163,7 @@ class RawViewModel(app: Application) : AndroidViewModel(app) {
                             camera.sendRaf(bytes)
                             val original = camera.getProfile()
                             remaining.forEach { recipe ->
-                                withContext(Dispatchers.Main) { state = state.copy(progress = "Rendering " + recipe.name) }
+                                withContext(Dispatchers.Main) { state = state.copy(progress = "Rendering ${recipe.name} (${saved + 1}/${selected.size})") }
                                 camera.setProfile(FujiProfile.build(original, recipe.current.settings))
                                 val rendered = camera.convert()
                                 val recipeName = recipe.name.trim().lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), "_").trim('_')
@@ -200,11 +188,16 @@ class RawViewModel(app: Application) : AndroidViewModel(app) {
 }
 
 @Composable
-fun RawCompareScreen(vm: RawViewModel = viewModel()) {
+fun RecipeRenderScreen(vm: RecipeRenderViewModel = viewModel()) {
     val recipes by vm.recipes.collectAsState()
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { t -> t?.let(vm::outputFolder) }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { u ->
         u?.let { vm.raf(it); pickFolder.launch(null) }
+    }
+    val view = LocalView.current
+    DisposableEffect(vm.state.busy) {
+        view.keepScreenOn = vm.state.busy
+        onDispose { view.keepScreenOn = false }
     }
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("Recipe Render", style = MaterialTheme.typography.headlineMedium)
@@ -221,7 +214,6 @@ fun RawCompareScreen(vm: RawViewModel = viewModel()) {
             if (vm.state.connection == ConnectionStatus.NEEDS_PERMISSION) {
                 TextButton(onClick = vm::requestPermission) { Text("Request permission") }
             }
-            TextButton(onClick = vm::resetConnection, enabled = vm.state.connection != ConnectionStatus.NOT_FOUND) { Text("Reset connection") }
         }
         Button(onClick = { pick.launch(arrayOf("image/x-fuji-raf", "application/octet-stream")) }, modifier = Modifier.padding(vertical = 8.dp)) {
             Text(if (vm.state.raf == null) "Choose RAF" else "Change RAF")
@@ -258,7 +250,7 @@ fun RawCompareScreen(vm: RawViewModel = viewModel()) {
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
         )
-        var collapsed by remember { mutableStateOf(setOf<FilmSimulation>()) }
+        var collapsed by remember { mutableStateOf(FilmSimulation.entries.toSet()) }
         val filtered = recipes.filterNot { it.archived }.filter { matchesFilter(it.current.settings.tags, vm.state.filterTags) }
         val grouped = filtered.groupBy { it.current.settings.filmSimulation }
         LazyColumn(Modifier.weight(1f)) {

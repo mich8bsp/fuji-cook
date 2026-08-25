@@ -5,6 +5,8 @@ import java.io.*
 data class JpegSegment(val marker: Int, val payload: ByteArray)
 data class ParsedJpeg(val segments: List<JpegSegment>, val scanAndTail: ByteArray)
 
+internal fun ByteArray.startsWith(prefix: ByteArray) = size >= prefix.size && prefix.indices.all { this[it] == prefix[it] }
+
 object JpegSegments {
     fun read(input: InputStream): ParsedJpeg {
         val data = input.readBytes()

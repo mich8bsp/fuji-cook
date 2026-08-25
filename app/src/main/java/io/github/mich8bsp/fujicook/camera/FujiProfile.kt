@@ -57,11 +57,9 @@ object FujiProfile {
         set(18, s.sharpness?.times(10))
         set(19, s.highIsoNoiseReduction?.let { nr.getValue(it) })
         set(22, s.monochromeWarmCool?.times(10))
-        set(23, s.smoothSkin?.let(::effect))
         set(24, s.colorChromeBlue?.let(::effect))
         set(25, s.monochromeMagentaGreen?.times(10))
         set(26, s.clarity?.times(10))
-        set(21, s.colorSpace?.let { if (it == ColorSpace.SRGB) 1 else 2 })
 
         values.forEachIndexed { i, v -> b.putInt(OFFSET + i * 4, v) }
         return out

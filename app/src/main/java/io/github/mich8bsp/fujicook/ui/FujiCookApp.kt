@@ -4,9 +4,7 @@ import android.app.Application
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -28,7 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-enum class Destination(val label: String) { RECIPES("Recipes"), TAGGER("Recipe Matcher"), BATCH_TAGGER("Batch Matcher"), RAW("Recipe Render") }
+enum class Destination(val label: String) { RECIPES("Recipes"), MATCHER("Recipe Matcher"), BATCH_MATCHER("Batch Matcher"), RENDER("Recipe Render") }
 
 @Composable
 fun FujiCookApp() {
@@ -40,7 +38,7 @@ fun FujiCookApp() {
                     NavigationBarItem(
                         selected = d == destination,
                         onClick = { destination = d },
-                        icon = { Icon(when (d) { Destination.RECIPES -> Icons.Default.List; Destination.TAGGER -> Icons.Default.Search; Destination.BATCH_TAGGER -> Icons.Default.CheckCircle; Destination.RAW -> Icons.Default.Settings }, null) },
+                        icon = { Icon(when (d) { Destination.RECIPES -> Icons.Default.List; Destination.MATCHER -> Icons.Default.Search; Destination.BATCH_MATCHER -> Icons.Default.CheckCircle; Destination.RENDER -> Icons.Default.Settings }, null) },
                         label = { Text(d.label) },
                     )
                 }
@@ -50,9 +48,9 @@ fun FujiCookApp() {
         Box(Modifier.padding(padding)) {
             when (destination) {
                 Destination.RECIPES -> RecipeScreen()
-                Destination.TAGGER -> TaggerScreen()
-                Destination.BATCH_TAGGER -> BatchTaggerScreen()
-                Destination.RAW -> RawScreen()
+                Destination.MATCHER -> RecipeMatcherScreen()
+                Destination.BATCH_MATCHER -> BatchMatcherScreen()
+                Destination.RENDER -> RecipeRenderScreen()
             }
         }
     }
@@ -131,17 +129,20 @@ fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
                     if (expanded) {
                         items(group, key = { it.id }) { recipe ->
                             Card(onClick = { editing = recipe }, modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
-                                Row(Modifier.padding(14.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    Text(recipe.name, style = MaterialTheme.typography.titleMedium)
-                                    Row(
-                                        Modifier.weight(1f).padding(horizontal = 8.dp).horizontalScroll(rememberScrollState()),
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    ) {
-                                        recipe.current.settings.tags.sortedBy { it.ordinal }.forEach { tag -> TagChip(tag) }
-                                    }
-                                    Row {
+                                Column(Modifier.padding(14.dp).fillMaxWidth()) {
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Text(recipe.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                                         TextButton(onClick = { vm.archive(recipe.id, !recipe.archived) }) { Text(if (recipe.archived) "Restore" else "Archive") }
                                         if (recipe.archived) TextButton(onClick = { deleting = recipe }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                                    }
+                                    if (recipe.current.settings.tags.isNotEmpty()) {
+                                        FlowRow(
+                                            Modifier.padding(top = 6.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                                        ) {
+                                            recipe.current.settings.tags.sortedBy { it.ordinal }.forEach { tag -> TagChip(tag) }
+                                        }
                                     }
                                 }
                             }
@@ -180,6 +181,3 @@ private fun RecipeDialog(onDismiss: () -> Unit, onSave: (String, RecipeSettings)
         SettingsEditor(settings, temperature, { settings = it }, { temperature = it.filter(Char::isDigit) }, Modifier.weight(1f))
     }
 }
-
-@Composable fun TaggerScreen() = JpegTaggerScreen()
-@Composable fun RawScreen() = RawCompareScreen()

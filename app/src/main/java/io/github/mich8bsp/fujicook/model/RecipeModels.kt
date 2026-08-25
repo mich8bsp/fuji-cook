@@ -16,8 +16,6 @@ enum class WhiteBalance {
     UNDERWATER, TEMPERATURE,
     CUSTOM_1, CUSTOM_2, CUSTOM_3,
 }
-enum class ColorSpace { SRGB, ADOBE_RGB }
-
 enum class RecipeTag {
     SUNNY, OVERCAST, GOLDEN_HOUR, LOW_LIGHT, NIGHT,
     PORTRAIT, WILDLIFE, URBAN, NATURE,
@@ -61,7 +59,6 @@ data class RecipeSettings(
     val grainSize: GrainSize? = null,
     val colorChrome: EffectStrength? = null,
     val colorChromeBlue: EffectStrength? = null,
-    val smoothSkin: EffectStrength? = null,
     val whiteBalance: WhiteBalance? = null,
     val whiteBalanceTemperature: Int? = null,
     val whiteBalanceRed: Int? = null,
@@ -73,7 +70,6 @@ data class RecipeSettings(
     val sharpness: Int? = null,
     val highIsoNoiseReduction: Int? = null,
     val clarity: Int? = null,
-    val colorSpace: ColorSpace? = null,
 ) {
     fun validate() {
         fun range(name: String, value: Int?, valid: IntRange) {
@@ -108,7 +104,6 @@ fun RecipeSettings.asCompleteRecipe() = copy(
     grainSize = if ((grainStrength ?: EffectStrength.OFF) == EffectStrength.OFF) null else grainSize ?: GrainSize.SMALL,
     colorChrome = colorChrome ?: EffectStrength.OFF,
     colorChromeBlue = colorChromeBlue ?: EffectStrength.OFF,
-    smoothSkin = null,
     whiteBalance = whiteBalance ?: WhiteBalance.AUTO,
     whiteBalanceTemperature = if ((whiteBalance ?: WhiteBalance.AUTO) == WhiteBalance.TEMPERATURE) whiteBalanceTemperature else null,
     whiteBalanceRed = whiteBalanceRed ?: 0,
@@ -120,7 +115,6 @@ fun RecipeSettings.asCompleteRecipe() = copy(
     sharpness = sharpness ?: 0,
     highIsoNoiseReduction = highIsoNoiseReduction ?: 0,
     clarity = clarity ?: 0,
-    colorSpace = null,
 )
 
 data class RecipeRevision(val id: String, val recipeId: String, val number: Int, val settings: RecipeSettings, val createdAt: Long)

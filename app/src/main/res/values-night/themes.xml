@@ -1,0 +1,1 @@
+<resources><style name="Theme.FujiCook" parent="android:style/Theme.DeviceDefault.DayNight"><item name="android:windowNoTitle">true</item><item name="android:windowActionBar">false</item><item name="android:fontFamily">sans</item><item name="android:windowLightStatusBar">false</item><item name="android:colorAccent">#D45D3A</item></style></resources>

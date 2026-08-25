@@ -9,11 +9,10 @@ import java.nio.ByteOrder
 class AndroidFujiCamera(private val manager: UsbManager, private val device: UsbDevice) : Closeable {
     companion object {
         const val VENDOR = 0x04cb
-        const val XT5 = 0x02fc
     }
 
     init {
-        require(device.vendorId == VENDOR && device.productId == XT5) { "Unsupported camera" }
+        require(device.vendorId == VENDOR) { "Unsupported camera" }
     }
 
     private val intf = (0 until device.interfaceCount).map(device::getInterface)

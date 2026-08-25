@@ -21,7 +21,7 @@ import io.github.mich8bsp.fujicook.model.*
 import java.io.ByteArrayInputStream
 import kotlinx.coroutines.*
 
-data class TagState(
+data class RecipeMatcherState(
     val jpeg: ParsedJpeg? = null,
     val extracted: ExtractedSettings? = null,
     val match: MatchResult? = null,
@@ -31,12 +31,12 @@ data class TagState(
     val message: String? = null,
 )
 
-class TaggerViewModel(app: Application) : AndroidViewModel(app) {
+class RecipeMatcherViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = (app as FujiCookApplication).recipes
-    var state by mutableStateOf(TagState()); private set
+    var state by mutableStateOf(RecipeMatcherState()); private set
 
     fun load(uri: Uri) = viewModelScope.launch {
-        state = TagState(busy = true)
+        state = RecipeMatcherState(busy = true)
         runCatching {
             withContext(Dispatchers.IO) {
                 val resolver = getApplication<Application>().contentResolver
@@ -48,8 +48,8 @@ class TaggerViewModel(app: Application) : AndroidViewModel(app) {
                 val match = if (active.status == MatchStatus.NO_MATCH) RecipeMatcher.match(ex.settings, repo.matchableRevisions(includeArchived = true)) else active
                 Triple(jpeg, ex, match) to name
             }
-        }.onSuccess { (v, name) -> state = TagState(v.first, v.second, v.third, v.third.candidates.firstOrNull(), fileName = name) }
-            .onFailure { state = TagState(message = it.message) }
+        }.onSuccess { (v, name) -> state = RecipeMatcherState(v.first, v.second, v.third, v.third.candidates.firstOrNull(), fileName = name) }
+            .onFailure { state = RecipeMatcherState(message = it.message) }
     }
 
     fun select(c: MatchCandidate) {
@@ -70,7 +70,7 @@ class TaggerViewModel(app: Application) : AndroidViewModel(app) {
 }
 
 @Composable
-fun JpegTaggerScreen(vm: TaggerViewModel = viewModel()) {
+fun RecipeMatcherScreen(vm: RecipeMatcherViewModel = viewModel()) {
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(vm::load) }
     val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("image/jpeg")) { uri -> uri?.let(vm::save) }
     var expanded by remember { mutableStateOf(emptySet<String>()) }

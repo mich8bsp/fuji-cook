@@ -6,10 +6,10 @@ import org.json.JSONObject
 
 object RecipeJson {
     private val keys = setOf(
-        "filmSimulation", "tags", "category", "monochromeWarmCool", "monochromeMagentaGreen", "grainStrength", "grainSize",
-        "colorChrome", "colorChromeBlue", "smoothSkin", "whiteBalance", "whiteBalanceTemperature",
+        "filmSimulation", "tags", "monochromeWarmCool", "monochromeMagentaGreen", "grainStrength", "grainSize",
+        "colorChrome", "colorChromeBlue", "whiteBalance", "whiteBalanceTemperature",
         "whiteBalanceRed", "whiteBalanceBlue", "dynamicRange", "highlightTone", "shadowTone",
-        "color", "sharpness", "highIsoNoiseReduction", "clarity", "colorSpace",
+        "color", "sharpness", "highIsoNoiseReduction", "clarity",
     )
 
     fun settings(s: RecipeSettings) = JSONObject().apply {
@@ -55,7 +55,6 @@ object RecipeJson {
             grainSize = en("grainSize", GrainSize.entries.toTypedArray()),
             colorChrome = en("colorChrome", EffectStrength.entries.toTypedArray()),
             colorChromeBlue = en("colorChromeBlue", EffectStrength.entries.toTypedArray()),
-            smoothSkin = null,
             whiteBalance = en("whiteBalance", WhiteBalance.entries.toTypedArray()),
             whiteBalanceTemperature = int("whiteBalanceTemperature"),
             whiteBalanceRed = int("whiteBalanceRed"),
@@ -67,7 +66,6 @@ object RecipeJson {
             sharpness = int("sharpness"),
             highIsoNoiseReduction = int("highIsoNoiseReduction"),
             clarity = int("clarity"),
-            colorSpace = null,
         ).asCompleteRecipe().also { it.validate() }
     }
 

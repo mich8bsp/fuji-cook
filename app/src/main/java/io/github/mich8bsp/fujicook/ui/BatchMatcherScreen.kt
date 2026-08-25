@@ -45,7 +45,7 @@ data class BatchState(
     val message: String? = null,
 )
 
-class BatchTaggerViewModel(app: Application) : AndroidViewModel(app) {
+class BatchMatcherViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = (app as FujiCookApplication).recipes
     var state by mutableStateOf(BatchState()); private set
 
@@ -131,7 +131,7 @@ private fun decodeThumbnail(data: ByteArray): Bitmap? {
 }
 
 @Composable
-fun BatchTaggerScreen(vm: BatchTaggerViewModel = viewModel()) {
+fun BatchMatcherScreen(vm: BatchMatcherViewModel = viewModel()) {
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> uri?.let(vm::loadFolder) }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {

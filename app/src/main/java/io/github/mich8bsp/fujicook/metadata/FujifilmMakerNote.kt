@@ -39,7 +39,6 @@ object FujifilmMakerNote {
             grainSize = when (num(0x104c)) { 16 -> GrainSize.SMALL; 32 -> GrainSize.LARGE; else -> null },
             colorChrome = effect(num(0x1048)),
             colorChromeBlue = effect(num(0x104e)),
-            smoothSkin = effect(num(0x1053)),
             whiteBalance = decodeWhiteBalance(num(0x1002)),
             whiteBalanceTemperature = num(0x1005),
             whiteBalanceRed = wbRed,
@@ -55,7 +54,6 @@ object FujifilmMakerNote {
         return ExtractedSettings(settings, make, RecipeMetadata.readTags(jpeg))
     }
 
-    private fun ByteArray.startsWith(prefix: ByteArray) = size >= prefix.size && prefix.indices.all { this[it] == prefix[it] }
     private fun Int.signed8() = (this and 0xff).let { if (it > 127) it - 256 else it }
     private fun effect(v: Int?) = when (v) { 0 -> EffectStrength.OFF; 32 -> EffectStrength.WEAK; 64 -> EffectStrength.STRONG; else -> null }
     private fun decodeTone(v: Int?): Double? = v?.let { if (it == 0) 0.0 else it / -16.0 }

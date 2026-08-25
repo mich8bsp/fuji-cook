@@ -163,4 +163,82 @@ class CoreTest {
         assertEquals(-4, FujifilmMakerNote.decodeNoiseReduction(0x2e0))
         assertEquals(3, FujifilmMakerNote.decodeNoiseReduction(0x1c0))
     }
+
+    @Test
+    fun matcherFlagsAmbiguousOnTie() {
+        val now = 1L
+        fun candidate(name: String, s: RecipeSettings): Pair<Recipe, RecipeRevision> {
+            val rev = RecipeRevision(name, "$name-id", 1, s, now)
+            return Recipe("$name-id", name, false, now, now, rev) to rev
+        }
+        val settings = RecipeSettings(FilmSimulation.PROVIA, color = 1, sharpness = 1)
+        val result = RecipeMatcher.match(settings, listOf(candidate("a", settings), candidate("b", settings)))
+        assertEquals(MatchStatus.AMBIGUOUS, result.status)
+    }
+
+    @Test
+    fun matcherReturnsLowConfidenceOnManySoftMismatches() {
+        val now = 1L
+        fun candidate(name: String, s: RecipeSettings): Pair<Recipe, RecipeRevision> {
+            val rev = RecipeRevision(name, "$name-id", 1, s, now)
+            return Recipe("$name-id", name, false, now, now, rev) to rev
+        }
+        val photo = RecipeSettings(
+            FilmSimulation.PROVIA, colorChrome = EffectStrength.OFF, colorChromeBlue = EffectStrength.OFF,
+            whiteBalance = WhiteBalance.AUTO, highlightTone = 0.0, shadowTone = 0.0, color = 0, sharpness = 0,
+            highIsoNoiseReduction = 0, grainStrength = EffectStrength.STRONG, grainSize = GrainSize.LARGE,
+            dynamicRange = 400, clarity = 5,
+        )
+        val recipe = photo.copy(grainStrength = EffectStrength.WEAK, grainSize = GrainSize.SMALL, dynamicRange = 0, clarity = -5)
+        val result = RecipeMatcher.match(photo, listOf(candidate("soft", recipe)))
+        assertEquals(MatchStatus.LOW_CONFIDENCE, result.status)
+        assertEquals(9.0 / 13, result.candidates.single().confidence, 0.0)
+    }
+
+    @Test
+    fun jsonRoundTripsSettings() {
+        val settings = RecipeSettings(
+            FilmSimulation.CLASSIC_CHROME, tags = setOf(RecipeTag.SUNNY, RecipeTag.PORTRAIT),
+            grainStrength = EffectStrength.STRONG, grainSize = GrainSize.LARGE,
+            whiteBalance = WhiteBalance.TEMPERATURE, whiteBalanceTemperature = 5500,
+            dynamicRange = 200, highlightTone = 1.0, shadowTone = -0.5, color = 2, sharpness = 1,
+            highIsoNoiseReduction = -1, clarity = 2,
+        ).asCompleteRecipe()
+        assertEquals(settings, RecipeJson.parseSettings(RecipeJson.settings(settings)))
+    }
+
+    @Test
+    fun jsonRejectsUnknownKey() {
+        val json = RecipeJson.settings(RecipeSettings(FilmSimulation.PROVIA).asCompleteRecipe())
+        json.put("bogus", 1)
+        assertThrows(IllegalArgumentException::class.java) { RecipeJson.parseSettings(json) }
+    }
+
+    @Test
+    fun profileReadsExistingValuesWhenCameraArrayIsFullSize() {
+        val camera = ByteArray(FujiProfile.SIZE)
+        val b = ByteBuffer.wrap(camera).order(ByteOrder.LITTLE_ENDIAN)
+        camera[2] = 9
+        "FF179502".forEachIndexed { i, c -> b.putShort(3 + i * 2, c.code.toShort()) }
+        IntArray(29) { it * 100 }.forEachIndexed { i, v -> b.putInt(0x201 + i * 4, v) }
+        val p = FujiProfile.build(camera, RecipeSettings(FilmSimulation.PROVIA, sharpness = 2))
+        val out = ByteBuffer.wrap(p).order(ByteOrder.LITTLE_ENDIAN)
+        assertEquals(600, out.getInt(0x201 + 6 * 4)) // untouched index passes through from the camera
+        assertEquals(20, out.getInt(0x201 + 18 * 4)) // sharpness maps to index 18, scaled by 10
+    }
+
+    @Test
+    fun ptpDataContainerRoundTrip() {
+        val payload = byteArrayOf(1, 2, 3, 4)
+        val c = PtpContainer.data(Ptp.SET_PROP, 3, payload)
+        val d = PtpContainer.decode(c.encode())
+        assertEquals(PtpContainer.DATA, d.type)
+        assertEquals(Ptp.SET_PROP, d.code)
+        assertArrayEquals(payload, d.body)
+    }
+
+    @Test
+    fun ptpDecodeRejectsTruncatedContainer() {
+        assertThrows(IllegalArgumentException::class.java) { PtpContainer.decode(ByteArray(8)) }
+    }
 }
