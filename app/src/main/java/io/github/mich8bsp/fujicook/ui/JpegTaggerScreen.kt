@@ -77,8 +77,8 @@ fun JpegTaggerScreen(vm: TaggerViewModel = viewModel()) {
     val photo = vm.state.extracted?.settings
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("JPEG Tagger", style = MaterialTheme.typography.headlineMedium)
-        Button(onClick = { pick.launch(arrayOf("image/jpeg")) }, modifier = Modifier.padding(vertical = 12.dp)) { Text("Choose X-T5 JPEG") }
+        Text("Recipe Matcher", style = MaterialTheme.typography.headlineMedium)
+        Button(onClick = { pick.launch(arrayOf("image/jpeg")) }, modifier = Modifier.padding(vertical = 12.dp)) { Text("Choose JPEG") }
         if (vm.state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         vm.state.extracted?.let {
             Text("Extracted: " + formatComparisonValue(it.settings.filmSimulation))

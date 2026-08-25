@@ -1,6 +1,6 @@
 # Fuji Cook
 
-Fuji Cook is an offline Android app for managing Fujifilm X-T5 film-simulation recipes, identifying recipes from original JPEG MakerNotes, tagging JPEGs, and rendering one RAF with multiple recipes through the camera's USB RAW converter.
+Fuji Cook is an offline Android app for managing Fujifilm film-simulation recipes, identifying recipes from original JPEG MakerNotes, tagging JPEGs, and rendering one RAF with multiple recipes through the camera's USB RAW converter.
 
 <div>
   <img src="screenshot.jpg" alt="Screenshot" width="300">

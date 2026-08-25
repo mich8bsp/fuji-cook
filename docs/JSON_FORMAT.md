@@ -5,7 +5,7 @@ Version 1 is UTF-8 JSON. Export contains current revisions only.
 ```json
 {
   "schemaVersion": 1,
-  "cameraModel": "Fujifilm X-T5",
+  "cameraModel": "Fujifilm",
   "recipes": [{
     "name": "Example",
     "settings": { "filmSimulation": "CLASSIC_CHROME", "color": 2 }

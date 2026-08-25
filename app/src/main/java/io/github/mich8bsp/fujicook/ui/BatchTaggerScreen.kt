@@ -135,7 +135,7 @@ fun BatchTaggerScreen(vm: BatchTaggerViewModel = viewModel()) {
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> uri?.let(vm::loadFolder) }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Batch Tagger", style = MaterialTheme.typography.headlineMedium)
+        Text("Batch Matcher", style = MaterialTheme.typography.headlineMedium)
         Button(onClick = { pick.launch(null) }, modifier = Modifier.padding(vertical = 12.dp)) { Text(if (vm.state.folder == null) "Choose folder" else "Change folder") }
         if (vm.state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         LazyColumn(Modifier.weight(1f)) {

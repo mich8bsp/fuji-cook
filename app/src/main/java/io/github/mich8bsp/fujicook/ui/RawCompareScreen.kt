@@ -103,7 +103,7 @@ class RawViewModel(app: Application) : AndroidViewModel(app) {
     fun requestPermission() {
         val app = getApplication<Application>()
         val manager = app.getSystemService(UsbManager::class.java)
-        val device = device() ?: run { state = state.copy(message = "X-T5 not found. Check the USB cable."); return }
+        val device = device() ?: run { state = state.copy(message = "Camera not found. Check the USB cable."); return }
         val intent = Intent(ACTION_USB_PERMISSION).setPackage(app.packageName)
         val pendingIntent = PendingIntent.getBroadcast(app, 0, intent, PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         manager.requestPermission(device, pendingIntent)
@@ -111,7 +111,7 @@ class RawViewModel(app: Application) : AndroidViewModel(app) {
 
     fun resetConnection() = viewModelScope.launch {
         val manager = getApplication<Application>().getSystemService(UsbManager::class.java)
-        val device = device() ?: run { state = state.copy(message = "X-T5 not found. Check the USB cable."); return@launch }
+        val device = device() ?: run { state = state.copy(message = "Camera not found. Check the USB cable."); return@launch }
         runCatching {
             withContext(Dispatchers.IO) {
                 require(manager.hasPermission(device)) { "USB permission required. Tap Request permission." }
@@ -167,7 +167,7 @@ class RawViewModel(app: Application) : AndroidViewModel(app) {
                 // whatever recipes haven't been rendered yet instead of losing the whole batch.
                 while (remaining.isNotEmpty()) {
                     attempt++
-                    val device = device() ?: error("X-T5 not connected")
+                    val device = device() ?: error("Camera not connected")
                     require(manager.hasPermission(device)) { "USB permission required. Tap Request permission." }
                     val result = runCatching {
                         AndroidFujiCamera(manager, device).use { camera ->
@@ -207,7 +207,7 @@ fun RawCompareScreen(vm: RawViewModel = viewModel()) {
         u?.let { vm.raf(it); pickFolder.launch(null) }
     }
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("X-T5 RAW Compare", style = MaterialTheme.typography.headlineMedium)
+        Text("Recipe Render", style = MaterialTheme.typography.headlineMedium)
         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             val (label, color) = when (vm.state.connection) {
                 ConnectionStatus.CONNECTED -> "Connected" to Color(0xFF2E7D32)

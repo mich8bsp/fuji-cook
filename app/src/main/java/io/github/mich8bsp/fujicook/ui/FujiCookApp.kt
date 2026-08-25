@@ -28,7 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-enum class Destination(val label: String) { RECIPES("Recipes"), TAGGER("JPEG Tagger"), BATCH_TAGGER("Batch Tagger"), RAW("RAW Compare") }
+enum class Destination(val label: String) { RECIPES("Recipes"), TAGGER("Recipe Matcher"), BATCH_TAGGER("Batch Matcher"), RAW("Recipe Render") }
 
 @Composable
 fun FujiCookApp() {
@@ -172,7 +172,7 @@ private fun RecipeDialog(onDismiss: () -> Unit, onSave: (String, RecipeSettings)
     var temperature by remember { mutableStateOf("5000") }
     val temperatureValid = settings.whiteBalance != WhiteBalance.TEMPERATURE || temperature.toIntOrNull()?.let { it in 2500..10000 } == true
     RecipeEditorDialog(
-        title = "New X-T5 recipe", saveLabel = "Save", saveEnabled = name.isNotBlank() && temperatureValid,
+        title = "New recipe", saveLabel = "Save", saveEnabled = name.isNotBlank() && temperatureValid,
         onDismiss = onDismiss,
         onSave = { onSave(name, settings.copy(whiteBalanceTemperature = if (settings.whiteBalance == WhiteBalance.TEMPERATURE) temperature.toInt() else null)) },
     ) {

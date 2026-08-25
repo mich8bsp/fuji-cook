@@ -13,7 +13,7 @@ class AndroidFujiCamera(private val manager: UsbManager, private val device: Usb
     }
 
     init {
-        require(device.vendorId == VENDOR && device.productId == XT5) { "Only Fujifilm X-T5 is supported" }
+        require(device.vendorId == VENDOR && device.productId == XT5) { "Unsupported camera" }
     }
 
     private val intf = (0 until device.interfaceCount).map(device::getInterface)
