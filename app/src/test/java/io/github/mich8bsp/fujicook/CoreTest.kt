@@ -8,6 +8,7 @@ import io.github.mich8bsp.fujicook.ui.suggestedFileName
 import java.io.*
 import java.nio.*
 import java.nio.charset.StandardCharsets
+import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -193,6 +194,20 @@ class CoreTest {
         val result = RecipeMatcher.match(photo, listOf(candidate("soft", recipe)))
         assertEquals(MatchStatus.LOW_CONFIDENCE, result.status)
         assertEquals(9.0 / 13, result.candidates.single().confidence, 0.0)
+    }
+
+    @Test
+    fun stripLegacyCategoryFieldRemovesItAndNothingElse() {
+        val legacy = """{"filmSimulation":"CLASSIC_NEGATIVE","category":"DRAMA","grainStrength":"STRONG","color":-3}"""
+        val cleaned = RecipeJson.stripLegacyCategoryField(legacy)
+        assertFalse(cleaned.contains("category"))
+        assertEquals(FilmSimulation.CLASSIC_NEGATIVE, RecipeJson.parseSettings(JSONObject(cleaned)).filmSimulation)
+    }
+
+    @Test
+    fun stripLegacyCategoryFieldIsNoOpWithoutIt() {
+        val json = RecipeJson.settings(RecipeSettings(FilmSimulation.PROVIA).asCompleteRecipe()).toString()
+        assertEquals(json, RecipeJson.stripLegacyCategoryField(json))
     }
 
     @Test

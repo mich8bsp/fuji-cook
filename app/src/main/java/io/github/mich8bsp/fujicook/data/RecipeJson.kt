@@ -83,4 +83,13 @@ object RecipeJson {
         recipes.forEach { array.put(recipe(it)) }
         return array.toString(2)
     }
+
+    // "category" was a single-value predecessor of "tags", retired before this field allow-list
+    // was written. Used by MIGRATION_1_2 to clean up rows persisted by those older app versions.
+    internal fun stripLegacyCategoryField(settingsJson: String): String {
+        val json = JSONObject(settingsJson)
+        if (!json.has("category")) return settingsJson
+        json.remove("category")
+        return json.toString()
+    }
 }

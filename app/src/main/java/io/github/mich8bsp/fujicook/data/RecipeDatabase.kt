@@ -1,6 +1,8 @@
 package io.github.mich8bsp.fujicook.data
 
 import androidx.room.*
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Entity(indices = [Index(value = ["normalizedName"], unique = true)])
@@ -47,7 +49,23 @@ interface RecipeDao {
     suspend fun delete(id: String)
 }
 
-@Database(entities = [RecipeEntity::class, RevisionEntity::class], version = 1, exportSchema = true)
+@Database(entities = [RecipeEntity::class, RevisionEntity::class], version = 2, exportSchema = true)
 abstract class RecipeDatabase : RoomDatabase() {
     abstract fun recipeDao(): RecipeDao
+}
+
+// Drops the retired "category" field from recipes saved by app versions that predate "tags".
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.query("SELECT id, settingsJson FROM RevisionEntity").use { cursor ->
+            val idIndex = cursor.getColumnIndexOrThrow("id")
+            val jsonIndex = cursor.getColumnIndexOrThrow("settingsJson")
+            while (cursor.moveToNext()) {
+                val id = cursor.getString(idIndex)
+                val original = cursor.getString(jsonIndex)
+                val cleaned = RecipeJson.stripLegacyCategoryField(original)
+                if (cleaned != original) db.execSQL("UPDATE RevisionEntity SET settingsJson = ? WHERE id = ?", arrayOf(cleaned, id))
+            }
+        }
+    }
 }
