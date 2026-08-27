@@ -51,6 +51,7 @@ data class RecipeRenderState(
     val message: String? = null,
     val connection: ConnectionStatus = ConnectionStatus.NOT_FOUND,
     val filterTags: Set<RecipeTag> = emptySet(),
+    val disableGrain: Boolean = false,
 )
 
 private fun matchesFilter(recipeTags: Set<RecipeTag>, filterTags: Set<RecipeTag>): Boolean =
@@ -135,6 +136,10 @@ class RecipeRenderViewModel(app: Application) : AndroidViewModel(app) {
         state = state.copy(filterTags = if (tag in state.filterTags) state.filterTags - tag else state.filterTags + tag)
     }
 
+    fun setDisableGrain(disabled: Boolean) {
+        state = state.copy(disableGrain = disabled)
+    }
+
     fun process() = viewModelScope.launch {
         val source = state.raf ?: return@launch
         val tree = state.outputTree ?: run { state = state.copy(message = "Choose an output folder first"); return@launch }
@@ -164,7 +169,8 @@ class RecipeRenderViewModel(app: Application) : AndroidViewModel(app) {
                             val original = camera.getProfile()
                             remaining.forEach { recipe ->
                                 withContext(Dispatchers.Main) { state = state.copy(progress = "Rendering ${recipe.name} (${saved + 1}/${selected.size})") }
-                                camera.setProfile(FujiProfile.build(original, recipe.current.settings))
+                                val settings = if (state.disableGrain) recipe.current.settings.copy(grainStrength = EffectStrength.OFF) else recipe.current.settings
+                                camera.setProfile(FujiProfile.build(original, settings))
                                 val rendered = camera.convert()
                                 val recipeName = recipe.name.trim().lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), "_").trim('_')
                                 val fileName = "${base}_${recipeName}.JPG"
@@ -244,6 +250,10 @@ fun RecipeRenderScreen(vm: RecipeRenderViewModel = viewModel()) {
                     }
                 }
             }
+        }
+        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Disable grain", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Switch(checked = vm.state.disableGrain, onCheckedChange = vm::setDisableGrain)
         }
         Text(
             "Recipes",
