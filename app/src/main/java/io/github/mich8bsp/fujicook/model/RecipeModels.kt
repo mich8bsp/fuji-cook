@@ -17,37 +17,39 @@ enum class WhiteBalance {
     CUSTOM_1, CUSTOM_2, CUSTOM_3,
 }
 enum class RecipeTag {
-    SUNNY, OVERCAST, GOLDEN_HOUR, LOW_LIGHT, NIGHT,
-    PORTRAIT, WILDLIFE, URBAN, NATURE,
-    WARM, COOL, NEUTRAL, BW,
-    VIBRANT, MUTED,
+    SUNNY, OVERCAST, GOLDEN_HOUR, NIGHT, INDOORS, RAINY,
+    PORTRAIT, WILDLIFE, NATURE, STREET, ARCHITECTURE,
+    WARM, COOL, BW, VIVID, MUTED, DARK, NOSTALGIC, EXPERIMENTAL,
 }
 
-enum class TagGroup(val label: String) { LIGHT("Light"), SUBJECT("Subject"), WHITE_BALANCE("White Balance"), TONE("Tone") }
+enum class TagGroup(val label: String) { LIGHT("Light"), SUBJECT("Subject"), STYLE("Style") }
 
 fun RecipeTag.group(): TagGroup = when (this) {
-    RecipeTag.SUNNY, RecipeTag.OVERCAST, RecipeTag.GOLDEN_HOUR, RecipeTag.LOW_LIGHT, RecipeTag.NIGHT -> TagGroup.LIGHT
-    RecipeTag.PORTRAIT, RecipeTag.WILDLIFE, RecipeTag.URBAN, RecipeTag.NATURE -> TagGroup.SUBJECT
-    RecipeTag.WARM, RecipeTag.COOL, RecipeTag.NEUTRAL, RecipeTag.BW -> TagGroup.WHITE_BALANCE
-    RecipeTag.VIBRANT, RecipeTag.MUTED -> TagGroup.TONE
+    RecipeTag.SUNNY, RecipeTag.OVERCAST, RecipeTag.GOLDEN_HOUR, RecipeTag.NIGHT, RecipeTag.INDOORS, RecipeTag.RAINY -> TagGroup.LIGHT
+    RecipeTag.PORTRAIT, RecipeTag.WILDLIFE, RecipeTag.NATURE, RecipeTag.STREET, RecipeTag.ARCHITECTURE -> TagGroup.SUBJECT
+    RecipeTag.WARM, RecipeTag.COOL, RecipeTag.BW, RecipeTag.VIVID, RecipeTag.MUTED, RecipeTag.DARK, RecipeTag.NOSTALGIC, RecipeTag.EXPERIMENTAL -> TagGroup.STYLE
 }
 
 fun RecipeTag.label(): String = when (this) {
     RecipeTag.SUNNY -> "Sunny"
     RecipeTag.OVERCAST -> "Overcast"
     RecipeTag.GOLDEN_HOUR -> "Golden Hour"
-    RecipeTag.LOW_LIGHT -> "Low-Light"
     RecipeTag.NIGHT -> "Night"
+    RecipeTag.INDOORS -> "Indoors"
+    RecipeTag.RAINY -> "Rainy"
     RecipeTag.PORTRAIT -> "Portrait"
     RecipeTag.WILDLIFE -> "Wildlife"
-    RecipeTag.URBAN -> "Urban"
     RecipeTag.NATURE -> "Nature"
+    RecipeTag.STREET -> "Street"
+    RecipeTag.ARCHITECTURE -> "Architecture"
     RecipeTag.WARM -> "Warm"
     RecipeTag.COOL -> "Cool"
-    RecipeTag.NEUTRAL -> "Neutral"
     RecipeTag.BW -> "B&W"
-    RecipeTag.VIBRANT -> "Vibrant"
+    RecipeTag.VIVID -> "Vivid"
     RecipeTag.MUTED -> "Muted"
+    RecipeTag.DARK -> "Dark"
+    RecipeTag.NOSTALGIC -> "Nostalgic"
+    RecipeTag.EXPERIMENTAL -> "Experimental"
 }
 
 data class RecipeSettings(
@@ -118,7 +120,7 @@ fun RecipeSettings.asCompleteRecipe() = copy(
 )
 
 data class RecipeRevision(val id: String, val recipeId: String, val number: Int, val settings: RecipeSettings, val createdAt: Long)
-data class Recipe(val id: String, val name: String, val archived: Boolean, val createdAt: Long, val updatedAt: Long, val current: RecipeRevision)
+data class Recipe(val id: String, val name: String, val archived: Boolean, val createdAt: Long, val updatedAt: Long, val current: RecipeRevision, val description: String = "")
 
 data class ExtractedSettings(val settings: RecipeSettings, val make: String?, val existingRecipeTags: List<String> = emptyList())
 enum class MatchStatus { MATCH, LOW_CONFIDENCE, AMBIGUOUS, NO_MATCH }
