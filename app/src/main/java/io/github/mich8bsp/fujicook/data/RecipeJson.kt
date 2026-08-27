@@ -72,6 +72,7 @@ object RecipeJson {
     fun recipe(r: Recipe) = JSONObject().apply {
         put("id", r.id)
         put("name", r.name)
+        put("description", r.description)
         put("archived", r.archived)
         put("createdAt", r.createdAt)
         put("updatedAt", r.updatedAt)
@@ -90,6 +91,22 @@ object RecipeJson {
         val json = JSONObject(settingsJson)
         if (!json.has("category")) return settingsJson
         json.remove("category")
+        return json.toString()
+    }
+
+    // LOW_LIGHT/URBAN/VIBRANT were renamed and NEUTRAL was dropped when the tag set was
+    // reorganized. Used by MIGRATION_2_3 to fix up rows persisted by older app versions.
+    private val legacyTagRenames = mapOf("LOW_LIGHT" to "INDOORS", "URBAN" to "STREET", "VIBRANT" to "VIVID")
+    private val removedTags = setOf("NEUTRAL")
+
+    internal fun migrateLegacyTags(settingsJson: String): String {
+        val json = JSONObject(settingsJson)
+        if (!json.has("tags")) return settingsJson
+        val arr = json.getJSONArray("tags")
+        val migrated = (0 until arr.length()).map { arr.getString(it) }
+            .filterNot { it in removedTags }
+            .map { legacyTagRenames[it] ?: it }
+        json.put("tags", JSONArray(migrated))
         return json.toString()
     }
 }

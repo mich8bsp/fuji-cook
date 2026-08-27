@@ -40,6 +40,11 @@ class RecipeRepository(private val db: RecipeDatabase) {
         dao.updateRecipe(row.recipe.copy(name = clean, normalizedName = clean.lowercase(), updatedAt = System.currentTimeMillis()))
     }
 
+    suspend fun setDescription(id: String, description: String) = db.withTransaction {
+        val row = requireNotNull(dao.get(id))
+        dao.updateRecipe(row.recipe.copy(description = description, updatedAt = System.currentTimeMillis()))
+    }
+
     suspend fun archive(id: String, archived: Boolean) {
         val row = requireNotNull(dao.get(id))
         dao.updateRecipe(row.recipe.copy(archived = archived, updatedAt = System.currentTimeMillis()))
@@ -54,7 +59,7 @@ class RecipeRepository(private val db: RecipeDatabase) {
     private fun domain(row: RecipeWithRevisions): Recipe? {
         val latest = row.revisions.maxByOrNull { it.number } ?: return null
         fun revision(e: RevisionEntity) = RecipeRevision(e.id, e.recipeId, e.number, RecipeJson.parseSettings(org.json.JSONObject(e.settingsJson)), e.createdAt)
-        return Recipe(row.recipe.id, row.recipe.name, row.recipe.archived, row.recipe.createdAt, row.recipe.updatedAt, revision(latest))
+        return Recipe(row.recipe.id, row.recipe.name, row.recipe.archived, row.recipe.createdAt, row.recipe.updatedAt, revision(latest), row.recipe.description)
     }
 
     suspend fun matchableRevisions(includeArchived: Boolean = false): List<Pair<Recipe, RecipeRevision>> = dao.getAll().filter { includeArchived || !it.recipe.archived }.mapNotNull { row ->

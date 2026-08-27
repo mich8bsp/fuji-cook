@@ -63,9 +63,10 @@ class RecipesViewModel(app: Application) : AndroidViewModel(app) {
 
     fun create(name: String, settings: RecipeSettings) = viewModelScope.launch { runCatching { repo.create(name, settings) }.onFailure { error = it.message } }
     fun archive(id: String, value: Boolean) = viewModelScope.launch { repo.archive(id, value) }
-    fun revise(recipe: Recipe, name: String, settings: RecipeSettings) = viewModelScope.launch {
+    fun revise(recipe: Recipe, name: String, description: String, settings: RecipeSettings) = viewModelScope.launch {
         runCatching {
             if (name != recipe.name) repo.rename(recipe.id, name)
+            if (description != recipe.description) repo.setDescription(recipe.id, description)
             repo.revise(recipe.id, settings)
         }.onFailure { error = it.message }
     }
@@ -153,7 +154,7 @@ fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
         }
     }
     if (adding) RecipeDialog(onDismiss = { adding = false }, onSave = { name, settings -> vm.create(name, settings); adding = false })
-    editing?.let { recipe -> SettingsDialog(recipe.name, recipe.current.settings, onDismiss = { editing = null }, onSave = { name, settings -> vm.revise(recipe, name, settings); editing = null }) }
+    editing?.let { recipe -> SettingsDialog(recipe.name, recipe.description, recipe.current.settings, onDismiss = { editing = null }, onSave = { name, description, settings -> vm.revise(recipe, name, description, settings); editing = null }) }
     deleting?.let { recipe ->
         AlertDialog(
             onDismissRequest = { deleting = null },
