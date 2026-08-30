@@ -87,7 +87,7 @@ fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
     var editing by remember { mutableStateOf<Recipe?>(null) }
     var showArchived by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<Recipe?>(null) }
-    var collapsed by remember { mutableStateOf(setOf<FilmSimulation>()) }
+    var collapsed by remember { mutableStateOf(FilmSimulation.entries.toSet()) }
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) vm.export(uri)
     }
