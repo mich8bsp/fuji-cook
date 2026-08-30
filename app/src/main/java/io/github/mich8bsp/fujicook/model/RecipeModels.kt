@@ -20,14 +20,16 @@ enum class RecipeTag {
     SUNNY, OVERCAST, GOLDEN_HOUR, NIGHT, INDOORS, RAINY,
     PORTRAIT, WILDLIFE, NATURE, STREET, ARCHITECTURE,
     WARM, COOL, BW, VIVID, MUTED, DARK, NOSTALGIC, EXPERIMENTAL,
+    SPRING, SUMMER, AUTUMN, WINTER,
 }
 
-enum class TagGroup(val label: String) { LIGHT("Light"), SUBJECT("Subject"), STYLE("Style") }
+enum class TagGroup(val label: String) { LIGHT("Light"), SUBJECT("Subject"), STYLE("Style"), SEASON("Season") }
 
 fun RecipeTag.group(): TagGroup = when (this) {
     RecipeTag.SUNNY, RecipeTag.OVERCAST, RecipeTag.GOLDEN_HOUR, RecipeTag.NIGHT, RecipeTag.INDOORS, RecipeTag.RAINY -> TagGroup.LIGHT
     RecipeTag.PORTRAIT, RecipeTag.WILDLIFE, RecipeTag.NATURE, RecipeTag.STREET, RecipeTag.ARCHITECTURE -> TagGroup.SUBJECT
     RecipeTag.WARM, RecipeTag.COOL, RecipeTag.BW, RecipeTag.VIVID, RecipeTag.MUTED, RecipeTag.DARK, RecipeTag.NOSTALGIC, RecipeTag.EXPERIMENTAL -> TagGroup.STYLE
+    RecipeTag.SPRING, RecipeTag.SUMMER, RecipeTag.AUTUMN, RecipeTag.WINTER -> TagGroup.SEASON
 }
 
 fun RecipeTag.label(): String = when (this) {
@@ -50,6 +52,10 @@ fun RecipeTag.label(): String = when (this) {
     RecipeTag.DARK -> "Dark"
     RecipeTag.NOSTALGIC -> "Nostalgic"
     RecipeTag.EXPERIMENTAL -> "Experimental"
+    RecipeTag.SPRING -> "Spring"
+    RecipeTag.SUMMER -> "Summer"
+    RecipeTag.AUTUMN -> "Autumn"
+    RecipeTag.WINTER -> "Winter"
 }
 
 data class RecipeSettings(

@@ -133,6 +133,10 @@ fun RecipeTag.color(): Color = when (this) {
     RecipeTag.DARK -> Color(0xFF263238)
     RecipeTag.NOSTALGIC -> Color(0xFF8D6E63)
     RecipeTag.EXPERIMENTAL -> Color(0xFF00BFA5)
+    RecipeTag.SPRING -> Color(0xFF7CB342)
+    RecipeTag.SUMMER -> Color(0xFFFBC02D)
+    RecipeTag.AUTUMN -> Color(0xFFD84315)
+    RecipeTag.WINTER -> Color(0xFF4FC3F7)
 }
 
 @Composable
