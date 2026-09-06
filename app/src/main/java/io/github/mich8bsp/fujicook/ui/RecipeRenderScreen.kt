@@ -50,17 +50,19 @@ data class RecipeRenderState(
     val progress: String = "",
     val message: String? = null,
     val connection: ConnectionStatus = ConnectionStatus.NOT_FOUND,
-    val filterTags: Set<RecipeTag> = emptySet(),
+    val filterTags: Set<String> = emptySet(),
     val disableGrain: Boolean = false,
 )
 
-private fun matchesFilter(recipeTags: Set<RecipeTag>, filterTags: Set<RecipeTag>): Boolean =
-    filterTags.groupBy { it.group() }.all { (_, tags) -> recipeTags.any { it in tags } }
+// OR within a tag group, AND across groups. Unknown ids (deleted tags) group under null together.
+private fun matchesFilter(recipeTags: Set<String>, filterTags: Set<String>, groupOf: (String) -> String?): Boolean =
+    filterTags.groupBy(groupOf).all { (_, ids) -> recipeTags.any { it in ids } }
 
 private const val ACTION_USB_PERMISSION = "io.github.mich8bsp.fujicook.USB_PERMISSION"
 
 class RecipeRenderViewModel(app: Application) : AndroidViewModel(app) {
     val recipes = (app as FujiCookApplication).recipes.recipes.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val tags = (app as FujiCookApplication).tags.tags.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     var state by mutableStateOf(RecipeRenderState()); private set
 
     private val usbReceiver = object : BroadcastReceiver() {
@@ -132,8 +134,8 @@ class RecipeRenderViewModel(app: Application) : AndroidViewModel(app) {
         state = state.copy(chosen = if (selected) state.chosen + ids else state.chosen - ids)
     }
 
-    fun toggleFilterTag(tag: RecipeTag) {
-        state = state.copy(filterTags = if (tag in state.filterTags) state.filterTags - tag else state.filterTags + tag)
+    fun toggleFilterTag(id: String) {
+        state = state.copy(filterTags = if (id in state.filterTags) state.filterTags - id else state.filterTags + id)
     }
 
     fun setDisableGrain(disabled: Boolean) {
@@ -196,6 +198,7 @@ class RecipeRenderViewModel(app: Application) : AndroidViewModel(app) {
 @Composable
 fun RecipeRenderScreen(vm: RecipeRenderViewModel = viewModel()) {
     val recipes by vm.recipes.collectAsState()
+    val tags by vm.tags.collectAsState()
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { t -> t?.let(vm::outputFolder) }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { u ->
         u?.let { vm.raf(it); pickFolder.launch(null) }
@@ -242,11 +245,11 @@ fun RecipeRenderScreen(vm: RecipeRenderViewModel = viewModel()) {
             )
         }
         if (filterExpanded) {
-            TagGroup.entries.forEach { group ->
-                Text(group.label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
+            tags.grouped().forEach { (group, groupTags) ->
+                Text(group, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
-                    RecipeTag.entries.filter { it.group() == group }.forEach { tag ->
-                        FilterChip(selected = tag in vm.state.filterTags, onClick = { vm.toggleFilterTag(tag) }, label = { Text(tag.label()) })
+                    groupTags.forEach { tag ->
+                        FilterChip(selected = tag.id in vm.state.filterTags, onClick = { vm.toggleFilterTag(tag.id) }, label = { Text(tag.name) })
                     }
                 }
             }
@@ -261,7 +264,8 @@ fun RecipeRenderScreen(vm: RecipeRenderViewModel = viewModel()) {
             modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
         )
         var collapsed by remember { mutableStateOf(FilmSimulation.entries.toSet()) }
-        val filtered = recipes.filterNot { it.archived }.filter { matchesFilter(it.current.settings.tags, vm.state.filterTags) }
+        val groupOf = tags.associate { it.id to it.group }
+        val filtered = recipes.filterNot { it.archived }.filter { matchesFilter(it.current.settings.tags, vm.state.filterTags) { id -> groupOf[id] } }
         val grouped = filtered.groupBy { it.current.settings.filmSimulation }
         LazyColumn(Modifier.weight(1f)) {
             FilmSimulation.entries.forEach { sim ->

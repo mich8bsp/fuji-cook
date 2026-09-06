@@ -3,6 +3,7 @@ package io.github.mich8bsp.fujicook.data
 import androidx.room.*
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import io.github.mich8bsp.fujicook.model.SEED_TAGS
 import kotlinx.coroutines.flow.Flow
 
 @Entity(indices = [Index(value = ["normalizedName"], unique = true)])
@@ -15,6 +16,33 @@ data class RecipeEntity(@PrimaryKey val id: String, val name: String, val normal
 data class RevisionEntity(@PrimaryKey val id: String, val recipeId: String, val number: Int, val settingsJson: String, val createdAt: Long)
 
 data class RecipeWithRevisions(@Embedded val recipe: RecipeEntity, @Relation(parentColumn = "id", entityColumn = "recipeId") val revisions: List<RevisionEntity>)
+
+@Entity
+data class TagEntity(@PrimaryKey val id: String, val name: String, val groupName: String?, val color: Long, val sortOrder: Int)
+
+@Dao
+interface TagDao {
+    @Query("SELECT * FROM TagEntity ORDER BY sortOrder")
+    fun observeAll(): Flow<List<TagEntity>>
+
+    @Query("SELECT * FROM TagEntity WHERE id=:id")
+    suspend fun get(id: String): TagEntity?
+
+    @Query("SELECT * FROM TagEntity WHERE name=:name COLLATE NOCASE LIMIT 1")
+    suspend fun byName(name: String): TagEntity?
+
+    @Query("SELECT COALESCE(MAX(sortOrder), -1) FROM TagEntity")
+    suspend fun maxSortOrder(): Int
+
+    @Insert
+    suspend fun insert(tag: TagEntity)
+
+    @Update
+    suspend fun update(tag: TagEntity)
+
+    @Query("DELETE FROM TagEntity WHERE id=:id")
+    suspend fun delete(id: String)
+}
 
 @Dao
 interface RecipeDao {
@@ -49,9 +77,31 @@ interface RecipeDao {
     suspend fun delete(id: String)
 }
 
-@Database(entities = [RecipeEntity::class, RevisionEntity::class], version = 4, exportSchema = true)
+@Database(entities = [RecipeEntity::class, RevisionEntity::class, TagEntity::class], version = 5, exportSchema = true)
 abstract class RecipeDatabase : RoomDatabase() {
     abstract fun recipeDao(): RecipeDao
+    abstract fun tagDao(): TagDao
+}
+
+private fun seedTags(db: SupportSQLiteDatabase) {
+    SEED_TAGS.forEach { t ->
+        db.execSQL(
+            "INSERT OR IGNORE INTO TagEntity (id, name, groupName, color, sortOrder) VALUES (?, ?, ?, ?, ?)",
+            arrayOf<Any?>(t.id, t.name, t.group, t.color, t.sortOrder),
+        )
+    }
+}
+
+// Seeds the built-in tag vocabulary on a fresh install (the v4→v5 migration seeds upgrades).
+val TAG_SEED_CALLBACK = object : RoomDatabase.Callback() {
+    override fun onCreate(db: SupportSQLiteDatabase) = seedTags(db)
+}
+
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `TagEntity` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `groupName` TEXT, `color` INTEGER NOT NULL, `sortOrder` INTEGER NOT NULL, PRIMARY KEY(`id`))")
+        seedTags(db)
+    }
 }
 
 // Drops the retired "category" field from recipes saved by app versions that predate "tags".

@@ -16,51 +16,51 @@ enum class WhiteBalance {
     UNDERWATER, TEMPERATURE,
     CUSTOM_1, CUSTOM_2, CUSTOM_3,
 }
-enum class RecipeTag {
-    SUNNY, OVERCAST, GOLDEN_HOUR, NIGHT, INDOORS, RAINY,
-    PORTRAIT, WILDLIFE, NATURE, STREET, ARCHITECTURE,
-    WARM, COOL, BW, VIVID, MUTED, DARK, NOSTALGIC, EXPERIMENTAL,
-    SPRING, SUMMER, AUTUMN, WINTER,
-}
+/** A tag in the user-editable vocabulary. [id] is stable and stored in recipe JSON; [name] is display-only. */
+data class Tag(val id: String, val name: String, val group: String?, val color: Long, val sortOrder: Int)
 
-enum class TagGroup(val label: String) { LIGHT("Light"), SUBJECT("Subject"), STYLE("Style"), SEASON("Season") }
+/**
+ * Built-in tags seeded on first run / on the v4→v5 migration. Ids match the names of the pre-v5
+ * `RecipeTag` enum so existing recipe revision JSON needs no migration.
+ */
+val SEED_TAGS: List<Tag> = listOf(
+    Tag("SUNNY", "Sunny", "Light", 0xFFF9A825, 0),
+    Tag("OVERCAST", "Overcast", "Light", 0xFF455A64, 1),
+    Tag("GOLDEN_HOUR", "Golden Hour", "Light", 0xFFEF6C00, 2),
+    Tag("NIGHT", "Night", "Light", 0xFF1A237E, 3),
+    Tag("INDOORS", "Indoors", "Light", 0xFF303F9F, 4),
+    Tag("RAINY", "Rainy", "Light", 0xFF546E7A, 5),
+    Tag("PORTRAIT", "Portrait", "Subject", 0xFFAD1457, 6),
+    Tag("WILDLIFE", "Wildlife", "Subject", 0xFF6D4C41, 7),
+    Tag("NATURE", "Nature", "Subject", 0xFF2E7D32, 8),
+    Tag("STREET", "Street", "Subject", 0xFF37474F, 9),
+    Tag("ARCHITECTURE", "Architecture", "Subject", 0xFF5D4037, 10),
+    Tag("WARM", "Warm", "Style", 0xFFE65100, 11),
+    Tag("COOL", "Cool", "Style", 0xFF0277BD, 12),
+    Tag("BW", "B&W", "Style", 0xFF212121, 13),
+    Tag("VIVID", "Vivid", "Style", 0xFF6A1B9A, 14),
+    Tag("MUTED", "Muted", "Style", 0xFF757575, 15),
+    Tag("DARK", "Dark", "Style", 0xFF263238, 16),
+    Tag("NOSTALGIC", "Nostalgic", "Style", 0xFF8D6E63, 17),
+    Tag("EXPERIMENTAL", "Experimental", "Style", 0xFF00BFA5, 18),
+    Tag("SPRING", "Spring", "Season", 0xFF7CB342, 19),
+    Tag("SUMMER", "Summer", "Season", 0xFFFBC02D, 20),
+    Tag("AUTUMN", "Autumn", "Season", 0xFFD84315, 21),
+    Tag("WINTER", "Winter", "Season", 0xFF4FC3F7, 22),
+)
 
-fun RecipeTag.group(): TagGroup = when (this) {
-    RecipeTag.SUNNY, RecipeTag.OVERCAST, RecipeTag.GOLDEN_HOUR, RecipeTag.NIGHT, RecipeTag.INDOORS, RecipeTag.RAINY -> TagGroup.LIGHT
-    RecipeTag.PORTRAIT, RecipeTag.WILDLIFE, RecipeTag.NATURE, RecipeTag.STREET, RecipeTag.ARCHITECTURE -> TagGroup.SUBJECT
-    RecipeTag.WARM, RecipeTag.COOL, RecipeTag.BW, RecipeTag.VIVID, RecipeTag.MUTED, RecipeTag.DARK, RecipeTag.NOSTALGIC, RecipeTag.EXPERIMENTAL -> TagGroup.STYLE
-    RecipeTag.SPRING, RecipeTag.SUMMER, RecipeTag.AUTUMN, RecipeTag.WINTER -> TagGroup.SEASON
-}
+/** Colour choices offered when creating/editing a tag. */
+val TAG_PALETTE: List<Long> = SEED_TAGS.map { it.color }.distinct()
 
-fun RecipeTag.label(): String = when (this) {
-    RecipeTag.SUNNY -> "Sunny"
-    RecipeTag.OVERCAST -> "Overcast"
-    RecipeTag.GOLDEN_HOUR -> "Golden Hour"
-    RecipeTag.NIGHT -> "Night"
-    RecipeTag.INDOORS -> "Indoors"
-    RecipeTag.RAINY -> "Rainy"
-    RecipeTag.PORTRAIT -> "Portrait"
-    RecipeTag.WILDLIFE -> "Wildlife"
-    RecipeTag.NATURE -> "Nature"
-    RecipeTag.STREET -> "Street"
-    RecipeTag.ARCHITECTURE -> "Architecture"
-    RecipeTag.WARM -> "Warm"
-    RecipeTag.COOL -> "Cool"
-    RecipeTag.BW -> "B&W"
-    RecipeTag.VIVID -> "Vivid"
-    RecipeTag.MUTED -> "Muted"
-    RecipeTag.DARK -> "Dark"
-    RecipeTag.NOSTALGIC -> "Nostalgic"
-    RecipeTag.EXPERIMENTAL -> "Experimental"
-    RecipeTag.SPRING -> "Spring"
-    RecipeTag.SUMMER -> "Summer"
-    RecipeTag.AUTUMN -> "Autumn"
-    RecipeTag.WINTER -> "Winter"
-}
+/** Tags split into display groups, groups ordered by their first tag, ungrouped tags under "Other". */
+fun List<Tag>.grouped(): List<Pair<String, List<Tag>>> =
+    sortedBy { it.sortOrder }
+        .groupBy { it.group ?: "Other" }
+        .toList()
 
 data class RecipeSettings(
     val filmSimulation: FilmSimulation,
-    val tags: Set<RecipeTag> = emptySet(),
+    val tags: Set<String> = emptySet(),
     val monochromeWarmCool: Int? = null,
     val monochromeMagentaGreen: Int? = null,
     val grainStrength: EffectStrength? = null,

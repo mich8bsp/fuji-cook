@@ -14,7 +14,7 @@ object RecipeJson {
 
     fun settings(s: RecipeSettings) = JSONObject().apply {
         put("filmSimulation", s.filmSimulation.name)
-        put("tags", JSONArray(s.tags.map { it.name }))
+        put("tags", JSONArray(s.tags.toList()))
         putOpt("monochromeWarmCool", s.monochromeWarmCool)
         putOpt("monochromeMagentaGreen", s.monochromeMagentaGreen)
         putOpt("grainStrength", s.grainStrength?.name)
@@ -43,7 +43,7 @@ object RecipeJson {
 
         val tags = if (o.has("tags")) {
             val arr = o.getJSONArray("tags")
-            (0 until arr.length()).map { i -> RecipeTag.entries.firstOrNull { it.name == arr.getString(i) } ?: error("Invalid tag") }.toSet()
+            (0 until arr.length()).map { arr.getString(it) }.toSet()
         } else emptySet()
 
         return RecipeSettings(

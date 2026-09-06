@@ -213,7 +213,7 @@ class CoreTest {
     @Test
     fun jsonRoundTripsSettings() {
         val settings = RecipeSettings(
-            FilmSimulation.CLASSIC_CHROME, tags = setOf(RecipeTag.SUNNY, RecipeTag.PORTRAIT),
+            FilmSimulation.CLASSIC_CHROME, tags = setOf("SUNNY", "PORTRAIT", "b1f7c0de-0000-4000-8000-000000000001"),
             grainStrength = EffectStrength.STRONG, grainSize = GrainSize.LARGE,
             whiteBalance = WhiteBalance.TEMPERATURE, whiteBalanceTemperature = 5500,
             dynamicRange = 200, highlightTone = 1.0, shadowTone = -0.5, color = 2, sharpness = 1,

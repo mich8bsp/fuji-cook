@@ -26,7 +26,7 @@ import io.github.mich8bsp.fujicook.model.*
 private val toneValues = (0..12).map { -2.0 + it * 0.5 }
 
 @Composable
-fun SettingsDialog(initialName: String, initialDescription: String, initial: RecipeSettings, onDismiss: () -> Unit, onSave: (String, String, RecipeSettings) -> Unit) {
+fun SettingsDialog(initialName: String, initialDescription: String, initial: RecipeSettings, allTags: List<Tag>, onDismiss: () -> Unit, onSave: (String, String, RecipeSettings) -> Unit) {
     var name by remember { mutableStateOf(initialName) }
     var description by remember { mutableStateOf(initialDescription) }
     var settings by remember { mutableStateOf(initial.asCompleteRecipe()) }
@@ -43,7 +43,7 @@ fun SettingsDialog(initialName: String, initialDescription: String, initial: Rec
     ) {
         OutlinedTextField(name, { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp))
         OutlinedTextField(description, { description = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp))
-        SettingsEditor(settings, temperature, { settings = it }, { temperature = it.filter(Char::isDigit) }, Modifier.weight(1f))
+        SettingsEditor(settings, temperature, allTags, { settings = it }, { temperature = it.filter(Char::isDigit) }, Modifier.weight(1f))
     }
 }
 
@@ -65,7 +65,7 @@ internal fun RecipeEditorDialog(title: String, saveLabel: String, saveEnabled: B
 }
 
 @Composable
-internal fun SettingsEditor(settings: RecipeSettings, temperature: String, onSettingsChange: (RecipeSettings) -> Unit, onTemperatureChange: (String) -> Unit, modifier: Modifier = Modifier) {
+internal fun SettingsEditor(settings: RecipeSettings, temperature: String, allTags: List<Tag>, onSettingsChange: (RecipeSettings) -> Unit, onTemperatureChange: (String) -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
         RequiredSelector("Film simulation", settings.filmSimulation, FilmSimulation.entries) { film ->
             onSettingsChange(
@@ -77,7 +77,7 @@ internal fun SettingsEditor(settings: RecipeSettings, temperature: String, onSet
                 ),
             )
         }
-        TagSelector(settings.tags) { onSettingsChange(settings.copy(tags = it)) }
+        TagSelector(allTags, settings.tags) { onSettingsChange(settings.copy(tags = it)) }
         RequiredSelector("Grain strength", settings.grainStrength ?: EffectStrength.OFF, EffectStrength.entries) { strength ->
             onSettingsChange(settings.copy(grainStrength = strength, grainSize = if (strength == EffectStrength.OFF) null else settings.grainSize ?: GrainSize.SMALL))
         }
@@ -113,47 +113,22 @@ internal fun SettingsEditor(settings: RecipeSettings, temperature: String, onSet
     }
 }
 
-fun RecipeTag.color(): Color = when (this) {
-    RecipeTag.SUNNY -> Color(0xFFF9A825)
-    RecipeTag.OVERCAST -> Color(0xFF455A64)
-    RecipeTag.GOLDEN_HOUR -> Color(0xFFEF6C00)
-    RecipeTag.NIGHT -> Color(0xFF1A237E)
-    RecipeTag.INDOORS -> Color(0xFF303F9F)
-    RecipeTag.RAINY -> Color(0xFF546E7A)
-    RecipeTag.PORTRAIT -> Color(0xFFAD1457)
-    RecipeTag.WILDLIFE -> Color(0xFF6D4C41)
-    RecipeTag.NATURE -> Color(0xFF2E7D32)
-    RecipeTag.STREET -> Color(0xFF37474F)
-    RecipeTag.ARCHITECTURE -> Color(0xFF5D4037)
-    RecipeTag.WARM -> Color(0xFFE65100)
-    RecipeTag.COOL -> Color(0xFF0277BD)
-    RecipeTag.BW -> Color(0xFF212121)
-    RecipeTag.VIVID -> Color(0xFF6A1B9A)
-    RecipeTag.MUTED -> Color(0xFF757575)
-    RecipeTag.DARK -> Color(0xFF263238)
-    RecipeTag.NOSTALGIC -> Color(0xFF8D6E63)
-    RecipeTag.EXPERIMENTAL -> Color(0xFF00BFA5)
-    RecipeTag.SPRING -> Color(0xFF7CB342)
-    RecipeTag.SUMMER -> Color(0xFFFBC02D)
-    RecipeTag.AUTUMN -> Color(0xFFD84315)
-    RecipeTag.WINTER -> Color(0xFF4FC3F7)
-}
-
 @Composable
-fun TagChip(tag: RecipeTag, modifier: Modifier = Modifier) {
-    Surface(color = tag.color(), shape = MaterialTheme.shapes.small, modifier = modifier) {
-        Text(tag.label(), style = MaterialTheme.typography.labelSmall, color = Color.White, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+fun TagChip(tag: Tag, modifier: Modifier = Modifier) {
+    Surface(color = Color(tag.color), shape = MaterialTheme.shapes.small, modifier = modifier) {
+        Text(tag.name, style = MaterialTheme.typography.labelSmall, color = Color.White, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
     }
 }
 
 @Composable
-internal fun TagSelector(selected: Set<RecipeTag>, onChange: (Set<RecipeTag>) -> Unit) {
+internal fun TagSelector(all: List<Tag>, selected: Set<String>, onChange: (Set<String>) -> Unit) {
     Column(Modifier.padding(vertical = 6.dp)) {
         Text("Tags", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 4.dp))
-        TagGroup.entries.forEach { group ->
+        all.grouped().forEach { (group, tags) ->
+            Text(group, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 2.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-                RecipeTag.entries.filter { it.group() == group }.forEach { tag ->
-                    FilterChip(selected = tag in selected, onClick = { onChange(if (tag in selected) selected - tag else selected + tag) }, label = { Text(tag.label()) })
+                tags.forEach { tag ->
+                    FilterChip(selected = tag.id in selected, onClick = { onChange(if (tag.id in selected) selected - tag.id else selected + tag.id) }, label = { Text(tag.name) })
                 }
             }
         }

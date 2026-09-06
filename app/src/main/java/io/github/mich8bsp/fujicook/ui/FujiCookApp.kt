@@ -59,6 +59,7 @@ fun FujiCookApp() {
 class RecipesViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = (app as FujiCookApplication).recipes
     val recipes = repo.recipes.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val tags = (app as FujiCookApplication).tags.tags.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     var error by mutableStateOf<String?>(null); private set
 
     fun create(name: String, settings: RecipeSettings) = viewModelScope.launch { runCatching { repo.create(name, settings) }.onFailure { error = it.message } }
@@ -83,8 +84,10 @@ class RecipesViewModel(app: Application) : AndroidViewModel(app) {
 @Composable
 fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
     val recipes by vm.recipes.collectAsStateWithLifecycle()
+    val tags by vm.tags.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Recipe?>(null) }
+    var managingTags by remember { mutableStateOf(false) }
     var showArchived by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<Recipe?>(null) }
     var collapsed by remember { mutableStateOf(FilmSimulation.entries.toSet()) }
@@ -96,6 +99,7 @@ fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Recipes", style = MaterialTheme.typography.headlineMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilledTonalButton(onClick = { managingTags = true }) { Text("Tags") }
                 FilledTonalButton(onClick = { exportLauncher.launch("fuji-cook-recipes.json") }) { Icon(Icons.Default.Share, null); Text("Export") }
                 FilledTonalButton(onClick = { adding = true }) { Icon(Icons.Default.Add, null); Text("New") }
             }
@@ -136,13 +140,14 @@ fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
                                         TextButton(onClick = { vm.archive(recipe.id, !recipe.archived) }) { Text(if (recipe.archived) "Restore" else "Archive") }
                                         if (recipe.archived) TextButton(onClick = { deleting = recipe }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
                                     }
-                                    if (recipe.current.settings.tags.isNotEmpty()) {
+                                    val recipeTags = tags.filter { it.id in recipe.current.settings.tags }
+                                    if (recipeTags.isNotEmpty()) {
                                         FlowRow(
                                             Modifier.padding(top = 6.dp),
                                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                                             verticalArrangement = Arrangement.spacedBy(4.dp),
                                         ) {
-                                            recipe.current.settings.tags.sortedBy { it.ordinal }.forEach { tag -> TagChip(tag) }
+                                            recipeTags.forEach { tag -> TagChip(tag) }
                                         }
                                     }
                                 }
@@ -153,8 +158,9 @@ fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
             }
         }
     }
-    if (adding) RecipeDialog(onDismiss = { adding = false }, onSave = { name, settings -> vm.create(name, settings); adding = false })
-    editing?.let { recipe -> SettingsDialog(recipe.name, recipe.description, recipe.current.settings, onDismiss = { editing = null }, onSave = { name, description, settings -> vm.revise(recipe, name, description, settings); editing = null }) }
+    if (adding) RecipeDialog(tags, onDismiss = { adding = false }, onSave = { name, settings -> vm.create(name, settings); adding = false })
+    if (managingTags) TagManagerScreen(onDismiss = { managingTags = false })
+    editing?.let { recipe -> SettingsDialog(recipe.name, recipe.description, recipe.current.settings, tags, onDismiss = { editing = null }, onSave = { name, description, settings -> vm.revise(recipe, name, description, settings); editing = null }) }
     deleting?.let { recipe ->
         AlertDialog(
             onDismissRequest = { deleting = null },
@@ -168,7 +174,7 @@ fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
 }
 
 @Composable
-private fun RecipeDialog(onDismiss: () -> Unit, onSave: (String, RecipeSettings) -> Unit) {
+private fun RecipeDialog(allTags: List<Tag>, onDismiss: () -> Unit, onSave: (String, RecipeSettings) -> Unit) {
     var name by remember { mutableStateOf("") }
     var settings by remember { mutableStateOf(RecipeSettings(FilmSimulation.PROVIA).asCompleteRecipe()) }
     var temperature by remember { mutableStateOf("5000") }
@@ -179,6 +185,6 @@ private fun RecipeDialog(onDismiss: () -> Unit, onSave: (String, RecipeSettings)
         onSave = { onSave(name, settings.copy(whiteBalanceTemperature = if (settings.whiteBalance == WhiteBalance.TEMPERATURE) temperature.toInt() else null)) },
     ) {
         OutlinedTextField(name, { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp))
-        SettingsEditor(settings, temperature, { settings = it }, { temperature = it.filter(Char::isDigit) }, Modifier.weight(1f))
+        SettingsEditor(settings, temperature, allTags, { settings = it }, { temperature = it.filter(Char::isDigit) }, Modifier.weight(1f))
     }
 }
