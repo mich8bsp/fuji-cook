@@ -195,6 +195,7 @@ class RecipeRenderViewModel(app: Application) : AndroidViewModel(app) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecipeRenderScreen(vm: RecipeRenderViewModel = viewModel()) {
     val recipes by vm.recipes.collectAsState()
@@ -208,9 +209,9 @@ fun RecipeRenderScreen(vm: RecipeRenderViewModel = viewModel()) {
         view.keepScreenOn = vm.state.busy
         onDispose { view.keepScreenOn = false }
     }
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Recipe Render", style = MaterialTheme.typography.headlineMedium)
-        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+    Scaffold(topBar = { TopAppBar(title = { Text("Recipe Render") }) }) { padding ->
+    Column(Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
+        Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             val (label, color) = when (vm.state.connection) {
                 ConnectionStatus.CONNECTED -> "Connected" to Color(0xFF2E7D32)
                 ConnectionStatus.NEEDS_PERMISSION -> "Permission needed" to Color(0xFFF9A825)
@@ -218,14 +219,13 @@ fun RecipeRenderScreen(vm: RecipeRenderViewModel = viewModel()) {
             }
             Box(Modifier.size(10.dp).background(color, CircleShape))
             Spacer(Modifier.width(8.dp))
-            Text(label)
-            Spacer(Modifier.weight(1f))
+            Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
             if (vm.state.connection == ConnectionStatus.NEEDS_PERMISSION) {
                 TextButton(onClick = vm::requestPermission) { Text("Request permission") }
             }
-        }
-        Button(onClick = { pick.launch(arrayOf("image/x-fuji-raf", "application/octet-stream")) }, modifier = Modifier.padding(vertical = 8.dp)) {
-            Text(if (vm.state.raf == null) "Choose RAF" else "Change RAF")
+            FilledTonalButton(onClick = { pick.launch(arrayOf("image/x-fuji-raf", "application/octet-stream")) }) {
+                Text(if (vm.state.raf == null) "Choose RAF" else "Change RAF")
+            }
         }
         if (vm.state.raf != null) {
             Text(
@@ -235,13 +235,13 @@ fun RecipeRenderScreen(vm: RecipeRenderViewModel = viewModel()) {
         }
         var filterExpanded by remember { mutableStateOf(false) }
         Row(
-            Modifier.fillMaxWidth().clickable { filterExpanded = !filterExpanded }.padding(vertical = 8.dp),
+            Modifier.fillMaxWidth().clickable { filterExpanded = !filterExpanded }.padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(if (filterExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight, null)
             Text(
                 "Filter by tags" + if (vm.state.filterTags.isNotEmpty()) " (${vm.state.filterTags.size})" else "",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyMedium,
             )
         }
         if (filterExpanded) {
@@ -254,20 +254,15 @@ fun RecipeRenderScreen(vm: RecipeRenderViewModel = viewModel()) {
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Disable grain", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Disable grain", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
             Switch(checked = vm.state.disableGrain, onCheckedChange = vm::setDisableGrain)
         }
-        Text(
-            "Recipes",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-        )
         var collapsed by remember { mutableStateOf(FilmSimulation.entries.toSet()) }
         val groupOf = tags.associate { it.id to it.group }
         val filtered = recipes.filterNot { it.archived }.filter { matchesFilter(it.current.settings.tags, vm.state.filterTags) { id -> groupOf[id] } }
         val grouped = filtered.groupBy { it.current.settings.filmSimulation }
-        LazyColumn(Modifier.weight(1f)) {
+        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             FilmSimulation.entries.forEach { sim ->
                 val group = grouped[sim] ?: return@forEach
                 val expanded = sim !in collapsed
@@ -275,23 +270,29 @@ fun RecipeRenderScreen(vm: RecipeRenderViewModel = viewModel()) {
                 item(key = "header_$sim") {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(allChosen, { vm.setGroup(group.map { it.id }, !allChosen) })
-                        Row(
-                            Modifier.weight(1f).clickable { collapsed = if (expanded) collapsed + sim else collapsed - sim },
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight, null)
-                            Text("${sim.name.replace('_', ' ')} (${group.size})", style = MaterialTheme.typography.titleMedium)
-                        }
+                        FilmSimGroupHeader(
+                            sim, group.size, expanded,
+                            onToggle = { collapsed = if (expanded) collapsed + sim else collapsed - sim },
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
                 if (expanded) {
                     items(group, key = { it.id }) { r ->
-                        Row(
-                            Modifier.fillMaxWidth().padding(start = 24.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                        val selected = r.id in vm.state.chosen
+                        Surface(
+                            color = if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                            shape = MaterialTheme.shapes.small,
+                            onClick = { vm.toggle(r.id) },
+                            modifier = Modifier.fillMaxWidth().padding(start = 24.dp),
                         ) {
-                            Checkbox(r.id in vm.state.chosen, { vm.toggle(r.id) })
-                            Text(r.name)
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Checkbox(selected, { vm.toggle(r.id) })
+                                Text(r.name)
+                            }
                         }
                     }
                 }
@@ -308,5 +309,6 @@ fun RecipeRenderScreen(vm: RecipeRenderViewModel = viewModel()) {
             ) { Text("Render selected recipes") }
         }
         vm.state.message?.let { Text(it) }
+    }
     }
 }

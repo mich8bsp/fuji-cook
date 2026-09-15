@@ -69,6 +69,7 @@ class RecipeMatcherViewModel(app: Application) : AndroidViewModel(app) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecipeMatcherScreen(vm: RecipeMatcherViewModel = viewModel()) {
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(vm::load) }
@@ -76,43 +77,66 @@ fun RecipeMatcherScreen(vm: RecipeMatcherViewModel = viewModel()) {
     var expanded by remember { mutableStateOf(emptySet<String>()) }
     val photo = vm.state.extracted?.settings
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Recipe Matcher", style = MaterialTheme.typography.headlineMedium)
-        Button(onClick = { pick.launch(arrayOf("image/jpeg")) }, modifier = Modifier.padding(vertical = 12.dp)) { Text("Choose JPEG") }
-        if (vm.state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        vm.state.extracted?.let {
-            Text("Extracted: " + formatComparisonValue(it.settings.filmSimulation))
-            if (it.existingRecipeTags.isNotEmpty()) Text("Existing: " + it.existingRecipeTags.joinToString())
-        }
-        vm.state.match?.let { match ->
-            Text("Result: " + match.status, style = MaterialTheme.typography.titleMedium)
-            LazyColumn(Modifier.weight(1f)) {
-                if (match.candidates.isEmpty() && photo != null) item { PhotoParameters(photo) }
-                items(match.candidates.take(20), key = { it.revision.id }) { candidate ->
-                    val isExpanded = candidate.revision.id in expanded
-                    Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(candidate.recipe.name + if (candidate.recipe.archived) " (archived)" else "", style = MaterialTheme.typography.titleMedium)
-                                    Text((candidate.confidence * 100).toInt().toString() + "% · " + candidate.differences.size + " difference(s)")
-                                    candidate.modifiedSummary?.let { Text("Will tag as modified: $it", style = MaterialTheme.typography.bodySmall) }
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("Recipe Matcher") }) },
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
+            Button(onClick = { pick.launch(arrayOf("image/jpeg")) }, modifier = Modifier.fillMaxWidth()) {
+                Text(if (vm.state.jpeg == null) "Choose JPEG" else "Change JPEG")
+            }
+            if (vm.state.busy) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp))
+            vm.state.extracted?.let {
+                Text("Extracted: " + formatComparisonValue(it.settings.filmSimulation))
+                if (it.existingRecipeTags.isNotEmpty()) Text("Existing: " + it.existingRecipeTags.joinToString())
+            }
+            vm.state.match?.let { match ->
+                MatchStatusBadge(match.status, modifier = Modifier.padding(vertical = 8.dp))
+                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (match.candidates.isEmpty() && photo != null) item { PhotoParameters(photo) }
+                    items(match.candidates.take(20), key = { it.revision.id }) { candidate ->
+                        val isExpanded = candidate.revision.id in expanded
+                        val isSelected = vm.state.selected?.revision?.id == candidate.revision.id
+                        Card(
+                            onClick = { vm.select(candidate) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = if (isSelected) CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer) else CardDefaults.cardColors(),
+                        ) {
+                            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(candidate.recipe.name + if (candidate.recipe.archived) " (archived)" else "", style = MaterialTheme.typography.titleMedium)
+                                        Text((candidate.confidence * 100).toInt().toString() + "% · " + candidate.differences.size + " difference(s)")
+                                        candidate.modifiedSummary?.let { Text("Will tag as modified: $it", style = MaterialTheme.typography.bodySmall) }
+                                    }
+                                    RadioButton(isSelected, { vm.select(candidate) })
                                 }
-                                RadioButton(vm.state.selected?.revision?.id == candidate.revision.id, { vm.select(candidate) })
+                                TextButton(onClick = { expanded = if (isExpanded) expanded - candidate.revision.id else expanded + candidate.revision.id }) {
+                                    Text(if (isExpanded) "Hide parameter details" else "Show parameter details")
+                                }
+                                if (isExpanded && photo != null) ParameterComparison(photo, candidate.revision.settings)
                             }
-                            TextButton(onClick = { expanded = if (isExpanded) expanded - candidate.revision.id else expanded + candidate.revision.id }) {
-                                Text(if (isExpanded) "Hide parameter details" else "Show parameter details")
-                            }
-                            if (isExpanded && photo != null) ParameterComparison(photo, candidate.revision.settings)
                         }
                     }
                 }
             }
+            vm.state.selected?.let { c ->
+                Button(onClick = { save.launch(suggestedFileName(vm.state.fileName, c.recipe.name)) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text("Save tagged copy") }
+            }
+            vm.state.message?.let { Text(it, Modifier.padding(top = 8.dp)) }
         }
-        vm.state.selected?.let { c ->
-            Button(onClick = { save.launch(suggestedFileName(vm.state.fileName, c.recipe.name)) }, modifier = Modifier.fillMaxWidth()) { Text("Save tagged copy") }
-        }
-        vm.state.message?.let { Text(it, Modifier.padding(top = 8.dp)) }
+    }
+}
+
+@Composable
+internal fun MatchStatusBadge(status: MatchStatus, modifier: Modifier = Modifier) {
+    val (label, color) = when (status) {
+        MatchStatus.MATCH -> "Match found" to MaterialTheme.colorScheme.primaryContainer
+        MatchStatus.LOW_CONFIDENCE -> "Low confidence match" to MaterialTheme.colorScheme.tertiaryContainer
+        MatchStatus.AMBIGUOUS -> "Ambiguous match" to MaterialTheme.colorScheme.tertiaryContainer
+        MatchStatus.NO_MATCH -> "No match" to MaterialTheme.colorScheme.errorContainer
+    }
+    Surface(color = color, shape = MaterialTheme.shapes.small, modifier = modifier) {
+        Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
     }
 }
 

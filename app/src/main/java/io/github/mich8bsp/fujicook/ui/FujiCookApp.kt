@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -14,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -81,6 +83,7 @@ class RecipesViewModel(app: Application) : AndroidViewModel(app) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
     val recipes by vm.recipes.collectAsStateWithLifecycle()
@@ -95,62 +98,58 @@ fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
         if (uri != null) vm.export(uri)
     }
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Recipes", style = MaterialTheme.typography.headlineMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilledTonalButton(onClick = { managingTags = true }) { Text("Tags") }
-                FilledTonalButton(onClick = { exportLauncher.launch("fuji-cook-recipes.json") }) { Icon(Icons.Default.Share, null); Text("Export") }
-                FilledTonalButton(onClick = { adding = true }) { Icon(Icons.Default.Add, null); Text("New") }
-            }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(showArchived, { showArchived = it })
-            Text("Show archived")
-        }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Recipes") },
+                actions = {
+                    TextButton(onClick = { managingTags = true }) { Text("Tags") }
+                    IconButton(onClick = { exportLauncher.launch("fuji-cook-recipes.json") }) { Icon(Icons.Default.Share, contentDescription = "Export") }
+                },
+            )
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(onClick = { adding = true }, icon = { Icon(Icons.Default.Add, null) }, text = { Text("New recipe") })
+        },
+    ) { padding ->
         val visible = recipes.filter { showArchived || !it.archived }
-        if (visible.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Your library is empty. Create or import a recipe.") }
-        } else {
-            val grouped = visible.groupBy { it.current.settings.filmSimulation }
-            LazyColumn(Modifier.fillMaxSize()) {
-                FilmSimulation.entries.forEach { sim ->
-                    val group = grouped[sim] ?: return@forEach
-                    val expanded = sim !in collapsed
-                    item(key = "header_$sim") {
-                        Row(
-                            Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                                .clickable { collapsed = if (expanded) collapsed + sim else collapsed - sim },
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight, null)
-                            Text(
-                                "${sim.name.replace('_', ' ')} (${group.size})",
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.weight(1f),
-                            )
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            FilterChip(
+                selected = showArchived,
+                onClick = { showArchived = !showArchived },
+                label = { Text("Show archived") },
+                modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp),
+            )
+            if (visible.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        "Your library is empty. Create or import a recipe.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            } else {
+                val grouped = visible.groupBy { it.current.settings.filmSimulation }
+                LazyColumn(
+                    Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    FilmSimulation.entries.forEach { sim ->
+                        val group = grouped[sim] ?: return@forEach
+                        val expanded = sim !in collapsed
+                        item(key = "header_$sim") {
+                            FilmSimGroupHeader(sim, group.size, expanded, onToggle = { collapsed = if (expanded) collapsed + sim else collapsed - sim })
                         }
-                    }
-                    if (expanded) {
-                        items(group, key = { it.id }) { recipe ->
-                            Card(onClick = { editing = recipe }, modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
-                                Column(Modifier.padding(14.dp).fillMaxWidth()) {
-                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                        Text(recipe.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                                        TextButton(onClick = { vm.archive(recipe.id, !recipe.archived) }) { Text(if (recipe.archived) "Restore" else "Archive") }
-                                        if (recipe.archived) TextButton(onClick = { deleting = recipe }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-                                    }
-                                    val recipeTags = tags.filter { it.id in recipe.current.settings.tags }
-                                    if (recipeTags.isNotEmpty()) {
-                                        FlowRow(
-                                            Modifier.padding(top = 6.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                                        ) {
-                                            recipeTags.forEach { tag -> TagChip(tag) }
-                                        }
-                                    }
-                                }
+                        if (expanded) {
+                            items(group, key = { it.id }) { recipe ->
+                                RecipeListItem(
+                                    recipe = recipe,
+                                    tags = tags,
+                                    onClick = { editing = recipe },
+                                    onArchiveToggle = { vm.archive(recipe.id, !recipe.archived) },
+                                    onDelete = { deleting = recipe },
+                                )
                             }
                         }
                     }
@@ -171,6 +170,98 @@ fun RecipeScreen(vm: RecipesViewModel = viewModel()) {
         )
     }
     vm.error?.let { AlertDialog(onDismissRequest = vm::clearError, confirmButton = { TextButton(onClick = vm::clearError) { Text("OK") } }, title = { Text("Could not save") }, text = { Text(it) }) }
+}
+
+@Composable
+internal fun FilmSimGroupHeader(sim: FilmSimulation, count: Int, expanded: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        shape = MaterialTheme.shapes.medium,
+        onClick = onToggle,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight, null)
+            Text(
+                sim.name.replace('_', ' '),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f).padding(start = 4.dp),
+            )
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface) {
+                Text(
+                    "$count",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecipeListItem(
+    recipe: Recipe,
+    tags: List<Tag>,
+    onClick: () -> Unit,
+    onArchiveToggle: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = if (recipe.archived) {
+            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        } else {
+            CardDefaults.cardColors()
+        },
+    ) {
+        Row(Modifier.padding(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 6.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(recipe.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    if (recipe.archived) {
+                        Surface(
+                            shape = MaterialTheme.shapes.extraSmall,
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier.padding(start = 8.dp),
+                        ) {
+                            Text("Archived", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                        }
+                    }
+                }
+                val recipeTags = tags.filter { it.id in recipe.current.settings.tags }
+                if (recipeTags.isNotEmpty()) {
+                    FlowRow(
+                        Modifier.padding(top = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        recipeTags.forEach { tag -> TagChip(tag) }
+                    }
+                }
+            }
+            Box {
+                IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Recipe actions") }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text(if (recipe.archived) "Restore" else "Archive") },
+                        onClick = { menuOpen = false; onArchiveToggle() },
+                    )
+                    if (recipe.archived) {
+                        DropdownMenuItem(
+                            text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                            onClick = { menuOpen = false; onDelete() },
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

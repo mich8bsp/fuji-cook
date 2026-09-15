@@ -19,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
@@ -130,41 +131,55 @@ private fun decodeThumbnail(data: ByteArray): Bitmap? {
     return BitmapFactory.decodeByteArray(data, 0, data.size, opts)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BatchMatcherScreen(vm: BatchMatcherViewModel = viewModel()) {
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> uri?.let(vm::loadFolder) }
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Batch Matcher", style = MaterialTheme.typography.headlineMedium)
-        Button(onClick = { pick.launch(null) }, modifier = Modifier.padding(vertical = 12.dp)) { Text(if (vm.state.folder == null) "Choose folder" else "Change folder") }
-        if (vm.state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        LazyColumn(Modifier.weight(1f)) {
-            items(vm.state.items, key = { it.uri }) { item -> BatchItemCard(item, onSelect = { vm.select(item.uri, it) }, onRemove = { vm.remove(item.uri) }) }
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("Batch Matcher") }) },
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
+            Button(onClick = { pick.launch(null) }, modifier = Modifier.fillMaxWidth()) {
+                Text(if (vm.state.folder == null) "Choose folder" else "Change folder")
+            }
+            if (vm.state.busy) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp))
+            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                items(vm.state.items, key = { it.uri }) { item -> BatchItemCard(item, onSelect = { vm.select(item.uri, it) }, onRemove = { vm.remove(item.uri) }) }
+            }
+            if (vm.state.items.any { it.selected != null }) {
+                Button(onClick = vm::saveAll, enabled = !vm.state.busy, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text("Save tagged") }
+            }
+            vm.state.message?.let { Text(it, Modifier.padding(top = 8.dp)) }
         }
-        if (vm.state.items.any { it.selected != null }) {
-            Button(onClick = vm::saveAll, enabled = !vm.state.busy, modifier = Modifier.fillMaxWidth()) { Text("Save tagged") }
-        }
-        vm.state.message?.let { Text(it, Modifier.padding(top = 8.dp)) }
     }
 }
 
 @Composable
 private fun BatchItemCard(item: BatchItem, onSelect: (MatchCandidate) -> Unit, onRemove: () -> Unit) {
-    Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+    Card(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
             Box(Modifier.size(64.dp), contentAlignment = Alignment.Center) {
                 item.thumbnail?.let { Image(it.asImageBitmap(), item.name, Modifier.size(64.dp)) } ?: Text("No preview", style = MaterialTheme.typography.bodySmall)
             }
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
                 Text(item.name, style = MaterialTheme.typography.titleSmall)
-                Text("Result: " + item.match.status, style = MaterialTheme.typography.bodySmall)
+                MatchStatusBadge(item.match.status, modifier = Modifier.padding(top = 4.dp))
                 item.match.candidates.take(5).forEach { candidate ->
-                    Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(item.selected?.revision?.id == candidate.revision.id, { onSelect(candidate) })
-                        Column {
-                            Text(candidate.recipe.name + if (candidate.recipe.archived) " (archived)" else "", style = MaterialTheme.typography.bodyMedium)
-                            Text((candidate.confidence * 100).toInt().toString() + "% · " + candidate.differences.size + " difference(s)", style = MaterialTheme.typography.bodySmall)
-                            candidate.modifiedSummary?.let { Text("Will tag as modified: $it", style = MaterialTheme.typography.bodySmall) }
+                    val selected = item.selected?.revision?.id == candidate.revision.id
+                    Surface(
+                        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                        shape = MaterialTheme.shapes.small,
+                        onClick = { onSelect(candidate) },
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    ) {
+                        Row(Modifier.fillMaxWidth().padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected, { onSelect(candidate) })
+                            Column {
+                                Text(candidate.recipe.name + if (candidate.recipe.archived) " (archived)" else "", style = MaterialTheme.typography.bodyMedium)
+                                Text((candidate.confidence * 100).toInt().toString() + "% · " + candidate.differences.size + " difference(s)", style = MaterialTheme.typography.bodySmall)
+                                candidate.modifiedSummary?.let { Text("Will tag as modified: $it", style = MaterialTheme.typography.bodySmall) }
+                            }
                         }
                     }
                 }
